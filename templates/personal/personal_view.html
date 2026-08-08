@@ -4,7 +4,7 @@
 
 {% block content %}
     <div class="page-header">
-        <h1>Usuarios del Sistema</h1>
+        <h1>👤 Usuarios del Sistema</h1>
         <a href="{{ url_for('personal.nuevo') }}" class="btn btn-success">+ Nuevo Usuario</a>
     </div>
 
@@ -62,7 +62,7 @@
                                         </form>
 
                                         <form action="{{ url_for('personal.eliminar', id_personal=p.id_personal) }}" method="post" style="display:inline;"
-                                              onsubmit="return confirm('¿Eliminar al usuario \'{{ p.usuario }}\'? Esta accion no se puede deshacer.');">
+                                              data-confirm="¿Eliminar al usuario {{ p.usuario }}? Esta accion no se puede deshacer.">
                                             <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
                                         </form>
                                     </div>

@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Sistema de Inventario{% endblock %} - Jugueteria</title>
+    <title>{% block title %}Sistema de Inventario{% endblock %} - El Comercio Ortiz</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
@@ -13,7 +16,7 @@
         <!-- ===== Sidebar lateral ===== -->
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <span class="brand-text">🧸 Inventario Jugueteria</span>
+                <span class="brand-text">🧸 El Comercio Ortiz</span>
                 <button type="button" class="sidebar-toggle" id="sidebarToggle" title="Contraer/Expandir menu">
                     <span id="toggleIcon">&laquo;</span>
                 </button>
@@ -28,11 +31,23 @@
                 <a href="{{ url_for('productos.index') }}"
                    class="{{ 'active' if request.blueprint == 'productos' }}">
                     <span class="nav-icon">📦</span><span class="nav-text">Productos</span>
+                    {% if sidebar_total_productos is defined %}
+                        <span class="nav-badge-group"><span class="nav-badge">{{ sidebar_total_productos }}</span></span>
+                    {% endif %}
                 </a>
 
                 <a href="{{ url_for('ventas.index') }}"
                    class="{{ 'active' if request.blueprint == 'ventas' }}">
                     <span class="nav-icon">💰</span><span class="nav-text">Ventas</span>
+                    <span class="nav-badge-group">
+                        {% if sidebar_ventas_pendientes %}
+                            <span class="nav-badge nav-badge-warning" title="Ventas pendientes de aprobar">{{ sidebar_ventas_pendientes }}</span>
+                        {% endif %}
+                        {% set carrito_count = session.get('carrito', [])|length %}
+                        {% if carrito_count > 0 %}
+                            <span class="nav-badge nav-badge-cart" title="Productos en tu carrito de venta actual">{{ carrito_count }}</span>
+                        {% endif %}
+                    </span>
                 </a>
 
                 <a href="{{ url_for('movimientos.index') }}"
@@ -56,7 +71,7 @@
             <div class="sidebar-footer">
                 <div class="sidebar-user">
                     <span class="nav-icon">🧑‍💼</span>
-                    <span class="nav-text">{{ session.get('nombre_completo', '') }}<br><small>{{ session.get('rol', '') }}</small></span>
+                    <span class="nav-text"><strong>{{ session.get('nombre_completo', '') }}</strong><br><small>{{ session.get('rol', '') }}</small></span>
                 </div>
                 <form action="{{ url_for('auth.logout') }}" method="post">
                     <button type="submit" class="btn btn-secondary btn-sm sidebar-logout" title="Cerrar sesion">Cerrar sesion</button>
@@ -67,18 +82,22 @@
         <!-- ===== Contenido principal ===== -->
         <main class="main-content">
             <div class="container">
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        {% for category, message in messages %}
-                            <div class="alert alert-{{ category }}">{{ message }}</div>
-                        {% endfor %}
-                    {% endif %}
-                {% endwith %}
-
                 {% block content %}{% endblock %}
             </div>
         </main>
 
+    </div>
+
+    <!-- ===== Notificaciones flotantes (toasts) ===== -->
+    <div class="toast-stack" id="toastStack">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+                <div class="toast toast-{{ category }}">
+                    <span>{{ message }}</span>
+                    <button type="button" class="toast-close" aria-label="Cerrar">&times;</button>
+                </div>
+            {% endfor %}
+        {% endwith %}
     </div>
 
     <script>
@@ -100,6 +119,72 @@
             const colapsado = !sidebar.classList.contains('collapsed');
             aplicarEstadoSidebar(colapsado);
             localStorage.setItem('sidebarColapsado', colapsado);
+        });
+
+        // Confirmacion antes de enviar formularios marcados con data-confirm.
+        // El mensaje se lee desde el atributo (nunca se concatena texto de
+        // usuario dentro de un onsubmit inline) para no exponer al XSS via
+        // nombres de producto/usuario con comillas.
+        document.querySelectorAll('form[data-confirm]').forEach(function (form) {
+            form.addEventListener('submit', function (evento) {
+                if (!confirm(form.dataset.confirm)) {
+                    evento.preventDefault();
+                }
+            });
+        });
+
+        // ---- Toasts: cierre manual y auto-descarte escalonado ----
+        function cerrarToast(toast) {
+            if (!toast || toast.classList.contains('closing')) return;
+            toast.classList.add('closing');
+            setTimeout(function () { toast.remove(); }, 200);
+        }
+
+        document.querySelectorAll('#toastStack .toast').forEach(function (toast, indice) {
+            toast.querySelector('.toast-close').addEventListener('click', function () {
+                cerrarToast(toast);
+            });
+            setTimeout(function () { cerrarToast(toast); }, 4200 + indice * 300);
+        });
+
+        // ---- Modales genericos: [data-modal-open]/[data-modal-close] ----
+        document.querySelectorAll('[data-modal-open]').forEach(function (boton) {
+            boton.addEventListener('click', function () {
+                const modal = document.getElementById(boton.dataset.modalOpen);
+                if (modal) modal.classList.add('open');
+            });
+        });
+
+        document.querySelectorAll('.modal-overlay').forEach(function (overlay) {
+            overlay.addEventListener('click', function (evento) {
+                if (evento.target === overlay) overlay.classList.remove('open');
+            });
+            overlay.querySelectorAll('[data-modal-close]').forEach(function (boton) {
+                boton.addEventListener('click', function () {
+                    overlay.classList.remove('open');
+                });
+            });
+        });
+
+        document.addEventListener('keydown', function (evento) {
+            if (evento.key === 'Escape') {
+                document.querySelectorAll('.modal-overlay.open').forEach(function (modal) {
+                    modal.classList.remove('open');
+                });
+            }
+        });
+
+        // ---- Stepper de cantidad (+ / -) reutilizable ----
+        document.querySelectorAll('.qty-stepper').forEach(function (stepper) {
+            const input = stepper.querySelector('.qty-input');
+            const minimo = parseInt(input.min, 10) || 1;
+            stepper.querySelectorAll('.qty-btn').forEach(function (boton) {
+                boton.addEventListener('click', function () {
+                    const delta = parseInt(boton.dataset.delta, 10);
+                    const actual = parseInt(input.value, 10) || minimo;
+                    input.value = Math.max(minimo, actual + delta);
+                });
+            });
         });
     </script>
 

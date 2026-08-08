@@ -3,6 +3,7 @@ productos_model.py
 Capa de acceso a datos (Model) exclusiva de la pestana Productos.
 No debe contener logica de rutas ni de renderizado de vistas.
 """
+from models import movimientos_model
 from models.database import get_db, obtener_conexion
 
 
@@ -44,6 +45,12 @@ def get_producto(id_producto):
         """,
         (id_producto,),
     ).fetchone()
+
+
+def contar_productos():
+    """Conteo rapido del catalogo, usado para el contador del sidebar."""
+    db = get_db()
+    return db.execute("SELECT COUNT(*) AS c FROM productos").fetchone()['c']
 
 
 def get_ubicaciones():
@@ -184,13 +191,16 @@ def obtener_todos_los_productos():
     ).fetchall()
 
 
-def guardar_o_actualizar_desde_excel(datos=None, nombre=None, precio=None, costo=None, stock=None):
+def guardar_o_actualizar_desde_excel(datos=None, nombre=None, precio=None, costo=None, stock=None, id_personal=None):
     """Procesa una fila importada de Excel y la persiste en SQLite.
 
     Acepta dos formatos compatibles:
     1) un dict con campos del Excel ya normalizados
     2) la firma legacy (codigo, nombre, precio, costo, stock)
-    """
+
+    Si se entrega `id_personal`, cada cambio de stock queda registrado en
+    el Kardex (AJUSTE_INVENTARIO si el producto ya existia, INGRESO_MERCADERIA
+    si se crea uno nuevo con stock inicial)."""
     if isinstance(datos, dict):
         data = dict(datos)
         codigo = data.get('codigo_1') or data.get('codigo')
@@ -259,7 +269,7 @@ def guardar_o_actualizar_desde_excel(datos=None, nombre=None, precio=None, costo
 
     # 2. Verificar si el producto ya existe por codigo_1
     cursor.execute(
-        "SELECT id_producto FROM productos WHERE codigo_1 = ?",
+        "SELECT id_producto, cantidad FROM productos WHERE codigo_1 = ?",
         (data['codigo_1'],),
     )
     existente = cursor.fetchone()
@@ -309,6 +319,7 @@ def guardar_o_actualizar_desde_excel(datos=None, nombre=None, precio=None, costo
             data['codigo_1'],
         )
         cursor.execute(query, params)
+        diferencia_cantidad = data['cantidad'] - existente['cantidad']
     else:
         query = """
             INSERT INTO productos (
@@ -343,6 +354,25 @@ def guardar_o_actualizar_desde_excel(datos=None, nombre=None, precio=None, costo
             data['cantidad'],
         )
         cursor.execute(query, params)
+        nuevo_id_producto = cursor.lastrowid
 
     conexion.commit()
     conexion.close()
+
+    if id_personal:
+        if existente and diferencia_cantidad != 0:
+            movimientos_model.registrar_movimiento(
+                id_producto=existente['id_producto'],
+                id_personal=id_personal,
+                tipo_movimiento='AJUSTE_INVENTARIO',
+                cantidad=diferencia_cantidad,
+                motivo_nota='Importacion desde Excel',
+            )
+        elif not existente and data['cantidad'] > 0:
+            movimientos_model.registrar_movimiento(
+                id_producto=nuevo_id_producto,
+                id_personal=id_personal,
+                tipo_movimiento='INGRESO_MERCADERIA',
+                cantidad=data['cantidad'],
+                motivo_nota='Alta de producto via importacion Excel',
+            )

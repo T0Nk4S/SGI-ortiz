@@ -36,12 +36,12 @@ def index():
 def nuevo():
     """Formulario de creacion (Create)."""
     if request.method == 'POST':
-        data, error_contrasena = _extraer_datos_formulario(request, requiere_contrasena=True)
+        data, error_formulario = _extraer_datos_formulario(request, requiere_contrasena=True)
 
-        if not personal_model.usuario_disponible(data['usuario']):
+        if error_formulario:
+            flash(error_formulario, 'danger')
+        elif not personal_model.usuario_disponible(data['usuario']):
             flash('Ya existe una cuenta con ese nombre de usuario.', 'danger')
-        elif error_contrasena:
-            flash(error_contrasena, 'danger')
         else:
             try:
                 personal_model.create_personal(data)
@@ -63,12 +63,12 @@ def editar(id_personal):
         return redirect(url_for('personal.index'))
 
     if request.method == 'POST':
-        data, error_contrasena = _extraer_datos_formulario(request, requiere_contrasena=False)
+        data, error_formulario = _extraer_datos_formulario(request, requiere_contrasena=False)
 
-        if not personal_model.usuario_disponible(data['usuario'], id_personal_excluir=id_personal):
+        if error_formulario:
+            flash(error_formulario, 'danger')
+        elif not personal_model.usuario_disponible(data['usuario'], id_personal_excluir=id_personal):
             flash('Ya existe otra cuenta con ese nombre de usuario.', 'danger')
-        elif error_contrasena:
-            flash(error_contrasena, 'danger')
         elif (
             persona['rol'] == 'Administrador'
             and data['rol'] != 'Administrador'
@@ -146,15 +146,16 @@ def cambiar_estado(id_personal):
     return redirect(url_for('personal.index'))
 
 
+ROLES_VALIDOS = ('Administrador', 'Empleado', 'Cajero')
+
+
 def _extraer_datos_formulario(request, requiere_contrasena):
     """Convierte los datos crudos del formulario en un dict listo para
-    insertar/actualizar, validando la contrasena en el mismo paso."""
+    insertar/actualizar, validando campos obligatorios y la contrasena.
+    El atributo HTML `required` solo protege en el navegador: esta
+    validacion es la que realmente se aplica ante una peticion directa."""
     contrasena = request.form.get('contrasena', '')
-    error_contrasena = None
-    if requiere_contrasena and not contrasena:
-        error_contrasena = 'La contrasena es obligatoria para crear un usuario.'
-    elif contrasena and len(contrasena) < 6:
-        error_contrasena = 'La contrasena debe tener al menos 6 caracteres.'
+    rol = request.form.get('rol', 'Cajero')
 
     data = {
         'nombres': request.form.get('nombres', '').strip(),
@@ -164,7 +165,16 @@ def _extraer_datos_formulario(request, requiere_contrasena):
         'telefono': request.form.get('telefono', '').strip() or None,
         'usuario': request.form.get('usuario', '').strip().lower(),
         'contrasena': contrasena,
-        'rol': request.form.get('rol', 'Cajero'),
+        'rol': rol if rol in ROLES_VALIDOS else 'Cajero',
         'estado': 1,
     }
-    return data, error_contrasena
+
+    error_formulario = None
+    if not all([data['nombres'], data['apellido_paterno'], data['ci'], data['usuario']]):
+        error_formulario = 'Nombres, apellido paterno, CI y usuario son obligatorios.'
+    elif requiere_contrasena and not contrasena:
+        error_formulario = 'La contrasena es obligatoria para crear un usuario.'
+    elif contrasena and len(contrasena) < 6:
+        error_formulario = 'La contrasena debe tener al menos 6 caracteres.'
+
+    return data, error_formulario

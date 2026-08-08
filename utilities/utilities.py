@@ -3,12 +3,14 @@ utilities.py
 Funciones reutilizables por CUALQUIER pestana del sistema
 (no logica exclusiva de productos, usuarios, ventas, etc).
 """
+import io
 import os
 import re
 import unicodedata
 import uuid
 from functools import wraps
 
+import qrcode
 from flask import flash, redirect, session, url_for
 
 
@@ -121,6 +123,22 @@ def admin_required(vista):
             return redirect(url_for('inicio.index'))
         return vista(*args, **kwargs)
     return envoltura
+
+
+def generar_imagen_qr(texto):
+    """Genera un codigo QR en memoria (PNG) a partir de un texto plano.
+    Devuelve un BytesIO listo para usar con send_file. Generico a
+    proposito: no sabe nada de productos ni de ninguna otra entidad,
+    solo convierte texto en imagen de QR."""
+    qr = qrcode.QRCode(border=2, box_size=8)
+    qr.add_data(texto)
+    qr.make(fit=True)
+    imagen = qr.make_image(fill_color="black", back_color="white")
+
+    buffer = io.BytesIO()
+    imagen.save(buffer, format="PNG")
+    buffer.seek(0)
+    return buffer
 
 
 def formato_moneda(valor):

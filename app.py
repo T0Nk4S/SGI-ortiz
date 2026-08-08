@@ -3,6 +3,8 @@ app.py
 Punto de entrada de la aplicacion. Usa el patron Application Factory
 y registra un Blueprint por cada pestana del sistema (modularidad por pestana).
 """
+import os
+
 from flask import Flask, flash, redirect, request, session, url_for
 
 from config import Config
@@ -16,6 +18,7 @@ from controllers.movimientos_controller import movimientos_bp
 from controllers.im_ex_controller import im_ex_bp
 from controllers.personal_controller import personal_bp
 from controllers.archivos_controller import archivos_bp
+from models import productos_model, ventas_model
 
 # Endpoints accesibles sin sesion iniciada
 ENDPOINTS_PUBLICOS = {'auth.login', 'static'}
@@ -25,6 +28,12 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
     app.secret_key = Config.SECRET_KEY
+
+    if Config.SECRET_KEY == 'dev-secret-key-cambiar-en-produccion':
+        print(
+            "🟡 Aviso: se esta usando la SECRET_KEY de desarrollo por defecto. "
+            "Define la variable de entorno SECRET_KEY con un valor propio para mayor seguridad."
+        )
 
     # 1. Inicializar la base de datos al arrancar
     inicializar_base_de_datos()
@@ -58,10 +67,25 @@ def create_app():
             flash('Debes iniciar sesion para continuar.', 'warning')
             return redirect(url_for('auth.login'))
 
+    @app.context_processor
+    def inyectar_contadores_sidebar():
+        """Contadores livianos que se muestran como badges en el sidebar
+        (cantidad de productos, items en el carrito de la sesion actual)."""
+        if 'id_personal' not in session:
+            return {}
+        return {
+            'sidebar_total_productos': productos_model.contar_productos(),
+            'sidebar_ventas_pendientes': ventas_model.contar_pendientes(),
+        }
+
     return app
 
 
 app = create_app()
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    # El modo debug (consola interactiva de Werkzeug) solo se activa si se
+    # pide explicitamente por variable de entorno: dejarlo prendido por
+    # defecto expondria un debugger capaz de ejecutar codigo arbitrario.
+    modo_debug = os.environ.get('FLASK_DEBUG', '0') == '1'
+    app.run(debug=modo_debug, port=5000)

@@ -4,7 +4,7 @@
 
 {% block content %}
     <div class="page-header">
-        <h1>Ventas</h1>
+        <h1>💰 Ventas</h1>
         <a href="{{ url_for('ventas.carrito') }}" class="btn btn-success">🛒 Ver Carrito</a>
     </div>
 
@@ -68,18 +68,13 @@
                     </table>
 
                     <div style="display:flex; gap:10px; margin-top:10px; align-items:center;">
-                        <form action="{{ url_for('ventas.aprobar', id_venta=v.id_venta) }}" method="post" style="display:flex; gap:6px; align-items:center;">
-                            <select name="id_personal_aprobador" required style="padding:6px; border:1px solid #d1d5db; border-radius:4px; font-size:0.85rem;">
-                                <option value="">Aprobada por...</option>
-                                {% for p in personal_activo %}
-                                    <option value="{{ p.id_personal }}">{{ p.nombres }} {{ p.apellido_paterno }}</option>
-                                {% endfor %}
-                            </select>
+                        <form action="{{ url_for('ventas.aprobar', id_venta=v.id_venta) }}" method="post" style="display:flex; gap:8px; align-items:center;">
                             <button type="submit" class="btn btn-success btn-sm">Aprobar</button>
+                            <span style="font-size:0.78rem; color:#6b7280;">como {{ session.get('nombre_completo') }}</span>
                         </form>
 
                         <form action="{{ url_for('ventas.rechazar', id_venta=v.id_venta) }}" method="post"
-                              onsubmit="return confirm('¿Rechazar esta venta? El registro no se guardara.');">
+                              data-confirm="¿Rechazar esta venta? El registro no se guardara.">
                             <button type="submit" class="btn btn-danger btn-sm">Rechazar</button>
                         </form>
                     </div>

@@ -5,10 +5,10 @@ Conecta las vistas (templates/productos) con el modelo (models/productos_model).
 """
 import sqlite3
 
-from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, send_file, session, url_for
 
-from models import productos_model
-from utilities.utilities import eliminar_imagen, guardar_imagen, parse_float, parse_int
+from models import movimientos_model, productos_model
+from utilities.utilities import eliminar_imagen, generar_imagen_qr, guardar_imagen, parse_float, parse_int
 
 productos_bp = Blueprint(
     'productos',
@@ -39,7 +39,15 @@ def nuevo():
     if request.method == 'POST':
         data = _extraer_datos_formulario(request)
         try:
-            productos_model.create_producto(data)
+            id_producto = productos_model.create_producto(data)
+            if data['cantidad'] > 0:
+                movimientos_model.registrar_movimiento(
+                    id_producto=id_producto,
+                    id_personal=session.get('id_personal'),
+                    tipo_movimiento='INGRESO_MERCADERIA',
+                    cantidad=data['cantidad'],
+                    motivo_nota='Alta de producto - stock inicial',
+                )
             flash(f"Producto \"{data['nombre']}\" creado correctamente.", 'success')
             return redirect(url_for('productos.index'))
         except sqlite3.IntegrityError:
@@ -67,6 +75,15 @@ def editar(id_producto):
         data = _extraer_datos_formulario(request, producto_actual=producto)
         try:
             productos_model.update_producto(id_producto, data)
+            diferencia_cantidad = data['cantidad'] - producto['cantidad']
+            if diferencia_cantidad != 0:
+                movimientos_model.registrar_movimiento(
+                    id_producto=id_producto,
+                    id_personal=session.get('id_personal'),
+                    tipo_movimiento='AJUSTE_INVENTARIO',
+                    cantidad=diferencia_cantidad,
+                    motivo_nota='Ajuste manual de stock desde edicion de producto',
+                )
             flash(f"Producto \"{data['nombre']}\" actualizado correctamente.", 'success')
             return redirect(url_for('productos.index'))
         except sqlite3.IntegrityError:
@@ -121,11 +138,31 @@ def cambiar_estado(id_producto):
     return redirect(url_for('productos.index'))
 
 
-@productos_bp.route('/qr/<int:id_producto>')
-def generar_qr(id_producto):
-    """Placeholder: la generacion de QR se implementara en una fase posterior."""
-    flash('La generacion de codigo QR se implementara mas adelante.', 'warning')
-    return redirect(url_for('productos.index'))
+@productos_bp.route('/qr/<int:id_producto>/imagen.png')
+def qr_imagen(id_producto):
+    """Genera al vuelo la imagen PNG del codigo QR de un producto (texto
+    plano con sus datos clave: sirve para escanear sin depender de que
+    el sistema este accesible por red, ideal para etiquetas impresas)."""
+    producto = productos_model.get_producto(id_producto)
+    if not producto:
+        return '', 404
+
+    buffer = generar_imagen_qr(_texto_qr_producto(producto))
+    return send_file(buffer, mimetype='image/png')
+
+
+def _texto_qr_producto(producto):
+    """Arma el texto plano que se codifica en el QR de un producto."""
+    lineas = [
+        'El Comercio Ortiz',
+        producto['nombre'],
+        f"Codigo: {producto['codigo_1']}",
+        f"PUF: Bs {producto['precio_unidad_facturado']:.2f}  |  PDF: Bs {producto['precio_docena_facturado']:.2f}",
+    ]
+    ubicacion = ' '.join(filter(None, [producto['ubicacion_nombre'], producto['posicion']]))
+    if ubicacion:
+        lineas.append(f'Ubicacion: {ubicacion}')
+    return '\n'.join(lineas)
 
 
 def _extraer_datos_formulario(request, producto_actual=None):

@@ -15,6 +15,7 @@ Reglas de negocio que implementa:
 - Si se rechaza ('Rechazada'), el encabezado se ELIMINA y sus lineas se
   eliminan en cascada (no se conserva historial de rechazadas).
 """
+from models import movimientos_model
 from models.database import get_db
 
 # Relacion entre el tipo de precio aplicado y la columna correspondiente
@@ -83,6 +84,14 @@ def get_pendientes():
     return _adjuntar_detalle(db, ventas)
 
 
+def contar_pendientes():
+    """Conteo rapido de ventas pendientes, usado para el badge del sidebar."""
+    db = get_db()
+    return db.execute(
+        "SELECT COUNT(*) AS c FROM ventas WHERE estado = 'Pendiente'"
+    ).fetchone()['c']
+
+
 def get_aprobadas(busqueda=None):
     """Ventas aprobadas, ordenadas por orden de llegada, con su detalle.
     La busqueda filtra por cliente, carnet, usuario, ubicacion o nombre de producto."""
@@ -131,6 +140,38 @@ def resolver_precio(producto, tipo_precio_aplicado, precio_personalizado=None):
     return producto[campo] if campo else 0
 
 
+# Orden de preferencia al sugerir una tarifa por defecto: si el producto
+# se vende por piezas (venta_fraccionada = 'Si') tiene sentido cobrar por
+# unidad primero; si solo se vende empaquetado, se prioriza paquete/docena.
+_ORDEN_TARIFA_FRACCIONADO = ['PUF', 'PPF', 'PDF', 'PDN', 'PPN', 'PDC']
+_ORDEN_TARIFA_PAQUETE = ['PPF', 'PDF', 'PDN', 'PPN', 'PDC', 'PUF']
+
+
+def tarifas_disponibles(producto):
+    """Tarifas que realmente tienen un precio cargado (> 0) para este
+    producto puntual. Evita ofrecer/usar una tarifa en 0 por descuido."""
+    return [
+        tipo for tipo, campo in CAMPO_POR_TIPO_PRECIO.items()
+        if (producto[campo] or 0) > 0
+    ]
+
+
+def tarifa_sugerida(producto):
+    """Elige la tarifa por defecto al agregar un producto al carrito,
+    respetando si el producto se vende por piezas o solo por paquete/docena.
+    Si ninguna tarifa tiene precio cargado, sugiere PERSONALIZADO para
+    forzar que el cajero indique el precio a mano (en vez de cobrar 0)."""
+    disponibles = tarifas_disponibles(producto)
+    if not disponibles:
+        return 'PERSONALIZADO'
+
+    orden = _ORDEN_TARIFA_FRACCIONADO if producto['venta_fraccionada'] == 'Si' else _ORDEN_TARIFA_PAQUETE
+    for tarifa in orden:
+        if tarifa in disponibles:
+            return tarifa
+    return disponibles[0]
+
+
 def create_venta(data_header, items):
     """Crea una venta (encabezado) en estado Pendiente junto con sus lineas.
     `items` es una lista de dicts:
@@ -171,7 +212,8 @@ def create_venta(data_header, items):
 
 
 def aprobar_venta(id_venta, id_personal_aprobador):
-    """Aprueba una venta pendiente y descuenta el stock de cada producto vendido."""
+    """Aprueba una venta pendiente, descuenta el stock de cada producto
+    vendido y deja registrada la salida correspondiente en el Kardex."""
     db = get_db()
 
     lineas = db.execute(
@@ -182,6 +224,14 @@ def aprobar_venta(id_venta, id_personal_aprobador):
         db.execute(
             "UPDATE productos SET cantidad = MAX(cantidad - ?, 0) WHERE id_producto = ?",
             (linea['cantidad'], linea['id_producto']),
+        )
+        movimientos_model.registrar_movimiento(
+            id_producto=linea['id_producto'],
+            id_personal=id_personal_aprobador,
+            tipo_movimiento='SALIDA_VENTA',
+            cantidad=-linea['cantidad'],
+            motivo_nota=f'Venta aprobada #{id_venta}',
+            id_venta=id_venta,
         )
 
     db.execute(

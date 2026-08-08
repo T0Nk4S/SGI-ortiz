@@ -5,6 +5,25 @@ Capa de acceso a datos para el historial de movimientos / Kardex.
 from models.database import get_db
 
 
+def registrar_movimiento(id_producto, id_personal, tipo_movimiento, cantidad,
+                          motivo_nota=None, id_venta=None, id_proveedor=None):
+    """Inserta una fila en el Kardex. `cantidad` va siempre con signo:
+    positivo para entradas (INGRESO_MERCADERIA, GARANTIA_ENTRADA, ajustes
+    hacia arriba) y negativo para salidas (SALIDA_VENTA, GARANTIA_BAJA,
+    DEVOLUCION_PROVEEDOR, ajustes hacia abajo)."""
+    db = get_db()
+    db.execute(
+        """
+        INSERT INTO movimientos (
+            id_producto, id_personal, id_venta, id_proveedor,
+            tipo_movimiento, cantidad, motivo_nota
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (id_producto, id_personal, id_venta, id_proveedor, tipo_movimiento, cantidad, motivo_nota),
+    )
+    db.commit()
+
+
 def get_movimientos(busqueda=None, tipo_movimiento=None):
     """Devuelve el kardex de movimientos, con filtros de texto y tipo."""
     db = get_db()

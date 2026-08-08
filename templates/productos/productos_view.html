@@ -4,19 +4,24 @@
 
 {% block content %}
     <div class="page-header">
-        <h1>Productos</h1>
+        <h1>📦 Productos</h1>
         <a href="{{ url_for('productos.nuevo') }}" class="btn btn-success">+ Nuevo Producto</a>
     </div>
 
+    <!-- Formulario "fantasma": no envuelve nada, los checkboxes de la tabla
+         y el boton de abajo se asocian a el via el atributo form="..." -->
+    <form id="formCarritoMultiple" method="post" action="{{ url_for('ventas.carrito_agregar_multiple') }}"></form>
+
     <div class="actions-bar">
-        <form action="{{ url_for('im_ex.importar_productos_excel') }}" method="POST" enctype="multipart/form-data" class="import-form">
-            <input type="file" name="archivo_excel" accept=".xlsx, .xls" required>
-            <button type="submit" class="btn btn-success">📥 Importar</button>
-        </form>
+        <button type="button" class="btn btn-success" data-modal-open="modalImportar">📥 Importar</button>
 
         <a href="{{ url_for('im_ex.exportar_productos_pdf') }}" class="btn btn-danger" target="_blank">
             📄 Exportar PDF
         </a>
+
+        <button type="submit" form="formCarritoMultiple" id="btnAgregarSeleccionados" class="btn btn-primary" disabled>
+            🛒 Agregar seleccionados <span id="contadorSeleccionados"></span>
+        </button>
     </div>
 
     <form method="get" class="filters">
@@ -36,6 +41,7 @@
                 <table>
                     <thead>
                         <tr>
+                            <th><input type="checkbox" id="chkTodos" title="Seleccionar todos"></th>
                             <th>Foto</th>
                             <th>Nombre</th>
                             <th>Codigo 1</th>
@@ -63,6 +69,11 @@
                     <tbody>
                         {% for p in productos %}
                             <tr>
+                                <td>
+                                    <input type="checkbox" class="chk-producto" name="ids_seleccionados"
+                                           value="{{ p.id_producto }}" form="formCarritoMultiple"
+                                           {{ 'disabled' if p.cantidad == 0 }}>
+                                </td>
                                 <td>
                                     {% if p.foto_url %}
                                         <img class="thumb" src="{{ url_for('static', filename='uploads/' ~ p.foto_url) }}" alt="{{ p.nombre }}">
@@ -107,11 +118,14 @@
                                         </form>
 
                                         <form action="{{ url_for('productos.eliminar', id_producto=p.id_producto) }}" method="post" style="display:inline;"
-                                              onsubmit="return confirm('¿Eliminar el producto \'{{ p.nombre }}\'? Esta accion no se puede deshacer.');">
+                                              data-confirm="¿Eliminar el producto {{ p.nombre }}? Esta accion no se puede deshacer.">
                                             <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
                                         </form>
 
-                                        <a href="{{ url_for('productos.generar_qr', id_producto=p.id_producto) }}" class="btn btn-secondary btn-sm">QR</a>
+                                        <button type="button" class="btn btn-secondary btn-sm"
+                                                data-modal-open="modalQr"
+                                                data-qr-src="{{ url_for('productos.qr_imagen', id_producto=p.id_producto) }}"
+                                                data-qr-nombre="{{ p.nombre }}">QR</button>
                                     </div>
                                 </td>
                             </tr>
@@ -127,4 +141,90 @@
             </div>
         {% endif %}
     </div>
+
+    <!-- ===== Modal: Importar productos desde Excel ===== -->
+    <div class="modal-overlay" id="modalImportar">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>📥 Importar productos desde Excel</h3>
+                <button type="button" class="modal-close" data-modal-close aria-label="Cerrar">&times;</button>
+            </div>
+            <form action="{{ url_for('im_ex.importar_productos_excel') }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Archivo Excel (.xlsx o .xls)</label>
+                        <input type="file" name="archivo_excel" accept=".xlsx, .xls" required>
+                    </div>
+                    <p class="cart-note">
+                        Cada fila se identifica por la columna <strong>Codigo1</strong>: si ya existe un producto
+                        con ese codigo se actualiza, y si no existe se crea uno nuevo.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-modal-close>Cancelar</button>
+                    <button type="submit" class="btn btn-success">📥 Importar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===== Modal: Codigo QR del producto ===== -->
+    <div class="modal-overlay" id="modalQr">
+        <div class="modal-card" style="max-width: 360px; text-align: center;">
+            <div class="modal-header">
+                <h3 id="modalQrTitulo">Codigo QR</h3>
+                <button type="button" class="modal-close" data-modal-close aria-label="Cerrar">&times;</button>
+            </div>
+            <div class="modal-body">
+                <img id="modalQrImagen" src="" alt="Codigo QR del producto"
+                     style="width:220px; height:220px; margin:0 auto; display:block; border:1px solid var(--border); border-radius:var(--radius-md); background:#fff;">
+                <p class="cart-note">Escanealo con la camara de un celular para ver los datos del producto.</p>
+            </div>
+            <div class="modal-footer">
+                <a id="modalQrDescargar" href="" download class="btn btn-success">⬇ Descargar</a>
+                <button type="button" class="btn btn-secondary" data-modal-close>Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Modal de QR: al hacer click en un boton "QR", carga la imagen
+        // de ESE producto en el modal compartido (evita generar las 26+
+        // imagenes QR de la pagina de una sola vez).
+        document.querySelectorAll('[data-qr-src]').forEach(function (boton) {
+            boton.addEventListener('click', function () {
+                document.getElementById('modalQrImagen').src = boton.dataset.qrSrc;
+                document.getElementById('modalQrDescargar').href = boton.dataset.qrSrc;
+                document.getElementById('modalQrTitulo').textContent = 'QR: ' + boton.dataset.qrNombre;
+            });
+        });
+
+        // Seleccion multiple: "Seleccionar todos" + contador en vivo del
+        // boton "Agregar seleccionados al carrito".
+        (function () {
+            const checkboxes = Array.from(document.querySelectorAll('.chk-producto'));
+            const contador = document.getElementById('contadorSeleccionados');
+            const btnAgregar = document.getElementById('btnAgregarSeleccionados');
+            const chkTodos = document.getElementById('chkTodos');
+
+            function actualizarContador() {
+                const total = checkboxes.filter(function (c) { return c.checked; }).length;
+                contador.textContent = total > 0 ? '(' + total + ')' : '';
+                btnAgregar.disabled = total === 0;
+            }
+
+            checkboxes.forEach(function (c) {
+                c.addEventListener('change', actualizarContador);
+            });
+
+            if (chkTodos) {
+                chkTodos.addEventListener('change', function () {
+                    checkboxes.forEach(function (c) {
+                        if (!c.disabled) c.checked = chkTodos.checked;
+                    });
+                    actualizarContador();
+                });
+            }
+        })();
+    </script>
 {% endblock %}

@@ -4,97 +4,99 @@
 
 {% block content %}
     <div class="page-header">
-        <h1>Carrito de Venta</h1>
-        <a href="{{ url_for('productos.index') }}" class="btn btn-secondary">Seguir agregando productos</a>
+        <div>
+            <h1>🛒 Carrito de Venta</h1>
+            <p class="subtitle">{{ lineas|length }} producto(s) en el carrito</p>
+        </div>
+        <a href="{{ url_for('productos.index') }}" class="btn btn-secondary">← Seguir agregando productos</a>
     </div>
 
     {% if lineas %}
-        <div class="card">
-            <div class="table-scroll">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Producto</th>
-                            <th>Cantidad</th>
-                            <th>Tarifa</th>
-                            <th>Precio personalizado</th>
-                            <th>Precio aplicado</th>
-                            <th>Subtotal</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for linea in lineas %}
-                            <tr>
-                                <td>
-                                    <div style="display:flex; align-items:center; gap:8px;">
-                                        {% if linea.producto.foto_url %}
-                                            <img class="thumb" src="{{ url_for('static', filename='uploads/' ~ linea.producto.foto_url) }}" alt="{{ linea.producto.nombre }}">
-                                        {% else %}
-                                            <div class="thumb"></div>
-                                        {% endif %}
-                                        {{ linea.producto.nombre }}
-                                    </div>
-                                </td>
-                                <td colspan="4">
-                                    <form action="{{ url_for('ventas.carrito_actualizar', id_producto=linea.producto.id_producto) }}" method="post"
-                                          style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                                        <input type="number" name="cantidad" min="1" value="{{ linea.cantidad }}" style="width:70px; padding:6px; border:1px solid #d1d5db; border-radius:4px;">
+        <div class="cart-layout">
+            <div class="cart-items">
+                {% for linea in lineas %}
+                    <div class="cart-item">
+                        {% if linea.producto.foto_url %}
+                            <img class="cart-item-thumb" src="{{ url_for('static', filename='uploads/' ~ linea.producto.foto_url) }}" alt="{{ linea.producto.nombre }}">
+                        {% else %}
+                            <div class="cart-item-thumb"></div>
+                        {% endif %}
 
-                                        <select name="tipo_precio_aplicado" style="padding:6px; border:1px solid #d1d5db; border-radius:4px;">
-                                            {% for tipo in tipos_precio %}
-                                                <option value="{{ tipo }}" {{ 'selected' if linea.tipo_precio_aplicado == tipo }}>{{ tipo }}</option>
-                                            {% endfor %}
-                                        </select>
+                        <div class="cart-item-info">
+                            <div class="cart-item-name">{{ linea.producto.nombre }}</div>
+                            <div class="cart-item-meta">
+                                Codigo: {{ linea.producto.codigo_1 }}
+                                &nbsp;|&nbsp;
+                                {% if linea.producto.venta_fraccionada == 'Si' %}
+                                    Se vende por piezas
+                                {% else %}
+                                    Solo por paquete/docena
+                                {% endif %}
+                            </div>
+                            {% if linea.precio_aplicado == 0 %}
+                                <div class="cart-item-warning">⚠️ Sin precio cargado para esta tarifa: indica un precio manual.</div>
+                            {% endif %}
+                        </div>
 
-                                        <input type="number" step="0.01" min="0" name="precio_personalizado"
-                                               placeholder="Solo si es PERSONALIZADO"
-                                               value="{{ linea.precio_personalizado }}"
-                                               style="width:150px; padding:6px; border:1px solid #d1d5db; border-radius:4px;">
+                        <form action="{{ url_for('ventas.carrito_actualizar', id_producto=linea.producto.id_producto) }}" method="post" class="cart-item-controls">
+                            <div class="qty-stepper">
+                                <button type="button" class="qty-btn" data-delta="-1" aria-label="Restar uno">−</button>
+                                <input type="number" name="cantidad" min="1" value="{{ linea.cantidad }}" class="qty-input" aria-label="Cantidad">
+                                <button type="button" class="qty-btn" data-delta="1" aria-label="Sumar uno">+</button>
+                            </div>
 
-                                        <button type="submit" class="btn btn-primary btn-sm">Actualizar</button>
-                                    </form>
-                                </td>
-                                <td>
-                                    <form action="{{ url_for('ventas.carrito_quitar', id_producto=linea.producto.id_producto) }}" method="post">
-                                        <button type="submit" class="btn btn-danger btn-sm">Quitar</button>
-                                    </form>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td colspan="7" style="background:#f9fafb; font-size:0.82rem; color:#6b7280;">
-                                    Precio aplicado: <strong>{{ '%.2f'|format(linea.precio_aplicado) }}</strong>
-                                    &nbsp;|&nbsp; Subtotal: <strong>{{ '%.2f'|format(linea.subtotal) }}</strong>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+                            <select name="tipo_precio_aplicado" aria-label="Tarifa">
+                                {% for tipo, precio in linea.precios_por_tarifa.items() %}
+                                    <option value="{{ tipo }}" {{ 'selected' if linea.tipo_precio_aplicado == tipo }}>
+                                        {{ tipo }} ({{ '%.2f'|format(precio) }})
+                                    </option>
+                                {% endfor %}
+                                <option value="PERSONALIZADO" {{ 'selected' if linea.tipo_precio_aplicado == 'PERSONALIZADO' }}>
+                                    PERSONALIZADO
+                                </option>
+                            </select>
 
-            <div style="text-align:right; font-size:1.1rem; font-weight:bold; margin-top:12px;">
-                Total: {{ '%.2f'|format(total) }}
-            </div>
+                            <input type="number" step="0.01" min="0" name="precio_personalizado"
+                                   placeholder="Precio manual"
+                                   value="{{ linea.precio_personalizado }}"
+                                   class="precio-personalizado-input" aria-label="Precio personalizado">
 
-            <form action="{{ url_for('ventas.carrito_vaciar') }}" method="post" style="margin-top:8px;"
-                  onsubmit="return confirm('¿Vaciar todo el carrito?');">
-                <button type="submit" class="btn btn-secondary btn-sm">Vaciar carrito</button>
-            </form>
-        </div>
+                            <button type="submit" class="btn btn-primary btn-sm">Actualizar</button>
+                        </form>
 
-        <div class="card">
-            <h2 style="margin-top:0;">Finalizar Venta</h2>
-            <form method="post" action="{{ url_for('ventas.carrito_finalizar') }}">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Usuario que registra la venta *</label>
-                        <select name="id_personal_registro" required>
-                            <option value="">-- Seleccionar --</option>
-                            {% for p in personal_activo %}
-                                <option value="{{ p.id_personal }}">{{ p.nombres }} {{ p.apellido_paterno }}</option>
-                            {% endfor %}
-                        </select>
+                        <div class="cart-item-price">
+                            {{ '%.2f'|format(linea.subtotal) }}
+                            <small>{{ '%.2f'|format(linea.precio_aplicado) }} c/u</small>
+                        </div>
+
+                        <form action="{{ url_for('ventas.carrito_quitar', id_producto=linea.producto.id_producto) }}" method="post">
+                            <button type="submit" class="btn btn-danger btn-sm" title="Quitar del carrito">✕</button>
+                        </form>
                     </div>
+                {% endfor %}
+
+                <form action="{{ url_for('ventas.carrito_vaciar') }}" method="post"
+                      data-confirm="¿Vaciar todo el carrito?">
+                    <button type="submit" class="btn btn-secondary btn-sm">Vaciar carrito</button>
+                </form>
+            </div>
+
+            <div class="cart-summary">
+                <h2>Resumen del pedido</h2>
+                <div class="cart-summary-row">
+                    <span>Productos distintos</span>
+                    <span>{{ lineas|length }}</span>
+                </div>
+                <div class="cart-summary-row">
+                    <span>Unidades totales</span>
+                    <span>{{ lineas|sum(attribute='cantidad') }}</span>
+                </div>
+                <div class="cart-summary-total">
+                    <span>Total</span>
+                    <span>Bs. {{ '%.2f'|format(total) }}</span>
+                </div>
+
+                <form method="post" action="{{ url_for('ventas.carrito_finalizar') }}" style="margin-top:18px; display:flex; flex-direction:column; gap:12px;">
                     <div class="form-group">
                         <label>Ubicacion / Sucursal *</label>
                         <input type="text" name="ubicacion" required placeholder="Ej: ORTIZ">
@@ -107,23 +109,23 @@
                         <label>Carnet</label>
                         <input type="text" name="cliente_ci" placeholder="Ej: 1234567">
                     </div>
-                    <div class="form-group" style="grid-column: 1 / -1;">
+                    <div class="form-group">
                         <label>Observaciones</label>
                         <input type="text" name="observaciones" placeholder="Ej: 4089">
                     </div>
-                </div>
 
-                <p style="color:#92400e; background:#fef3c7; padding:10px; border-radius:6px; font-size:0.85rem;">
-                    Esta venta quedara <strong>Pendiente</strong> hasta que caja confirme la recepcion del pago desde la pestana Ventas.
+                    <button type="submit" class="btn btn-success btn-block">Registrar Venta</button>
+                </form>
+
+                <p class="cart-note">
+                    Se registrara con tu usuario: <strong>{{ session.get('nombre_completo') }}</strong><br>
+                    Quedara <strong>Pendiente</strong> hasta que caja confirme el pago desde la pestana Ventas.
                 </p>
-
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-success">Registrar Venta</button>
-                </div>
-            </form>
+            </div>
         </div>
     {% else %}
         <div class="card empty-state">
+            <span class="empty-state-icon">🛒</span>
             El carrito esta vacio.
             <br><br>
             <a href="{{ url_for('productos.index') }}" class="btn btn-success">Ir a Productos</a>

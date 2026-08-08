@@ -8,6 +8,7 @@
         <div>
             <a href="{{ url_for('productos.editar', id_producto=producto.id_producto) }}" class="btn btn-primary">Editar</a>
             <a href="{{ url_for('ventas.carrito_agregar', id_producto=producto.id_producto) }}" class="btn btn-success">Vender</a>
+            <button type="button" class="btn btn-secondary" data-modal-open="modalQr">QR</button>
             <a href="{{ url_for('productos.index') }}" class="btn btn-secondary">Volver</a>
         </div>
     </div>
@@ -90,6 +91,25 @@
                     <dt>Incremento</dt><dd>{{ producto.incremento_porcentaje }}%</dd>
                 </div>
             </dl>
+        </div>
+    </div>
+
+    <!-- ===== Modal: Codigo QR del producto ===== -->
+    <div class="modal-overlay" id="modalQr">
+        <div class="modal-card" style="max-width: 360px; text-align: center;">
+            <div class="modal-header">
+                <h3>QR: {{ producto.nombre }}</h3>
+                <button type="button" class="modal-close" data-modal-close aria-label="Cerrar">&times;</button>
+            </div>
+            <div class="modal-body">
+                <img src="{{ url_for('productos.qr_imagen', id_producto=producto.id_producto) }}" alt="Codigo QR del producto"
+                     style="width:220px; height:220px; margin:0 auto; display:block; border:1px solid var(--border); border-radius:var(--radius-md); background:#fff;">
+                <p class="cart-note">Escanealo con la camara de un celular para ver los datos del producto.</p>
+            </div>
+            <div class="modal-footer">
+                <a href="{{ url_for('productos.qr_imagen', id_producto=producto.id_producto) }}" download class="btn btn-success">⬇ Descargar</a>
+                <button type="button" class="btn btn-secondary" data-modal-close>Cerrar</button>
+            </div>
         </div>
     </div>
 {% endblock %}
