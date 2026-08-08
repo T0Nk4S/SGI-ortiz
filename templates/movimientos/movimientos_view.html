@@ -1,0 +1,83 @@
+{% extends "shared/base.html" %}
+
+{% block title %}Kardex General de Movimientos{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1>Kardex General (Entradas y Salidas)</h1>
+            <p class="text-muted" style="color: #6c757d; margin-top: 5px;">
+                🔒 <strong>Registro de Solo Lectura:</strong> Historial inalterable de auditoría sobre todas las operaciones de la tienda.
+            </p>
+        </div>
+    </div>
+
+    <!-- Filtros de Consulta (Sin opciones de modificacion) -->
+    <form method="get" class="filters" style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
+        <input type="text" name="busqueda" placeholder="Buscar por producto o código..." value="{{ busqueda or '' }}">
+        
+        <select name="tipo_movimiento">
+            <option value="">Todos los tipos de movimiento</option>
+            <option value="INGRESO_MERCADERIA" {{ 'selected' if tipo_filtro == 'INGRESO_MERCADERIA' }}>INGRESO_MERCADERIA (+)</option>
+            <option value="SALIDA_VENTA" {{ 'selected' if tipo_filtro == 'SALIDA_VENTA' }}>SALIDA_VENTA (-)</option>
+            <option value="GARANTIA_ENTRADA" {{ 'selected' if tipo_filtro == 'GARANTIA_ENTRADA' }}>GARANTIA_ENTRADA (+)</option>
+            <option value="GARANTIA_BAJA" {{ 'selected' if tipo_filtro == 'GARANTIA_BAJA' }}>GARANTIA_BAJA (-)</option>
+            <option value="DEVOLUCION_PROVEEDOR" {{ 'selected' if tipo_filtro == 'DEVOLUCION_PROVEEDOR' }}>DEVOLUCION_PROVEEDOR (-)</option>
+            <option value="AJUSTE_INVENTARIO" {{ 'selected' if tipo_filtro == 'AJUSTE_INVENTARIO' }}>AJUSTE_INVENTARIO</option>
+        </select>
+
+        <button type="submit" class="btn btn-primary">Filtrar</button>
+        <a href="{{ url_for('movimientos.index') }}" class="btn btn-secondary">Limpiar</a>
+    </form>
+
+    <div class="card">
+        {% if movimientos %}
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Fecha / Hora</th>
+                            <th>Producto</th>
+                            <th>Código</th>
+                            <th>Tipo Movimiento</th>
+                            <th>Cantidad</th>
+                            <th>Personal Responsable</th>
+                            <th>ID Venta</th>
+                            <th>Proveedor</th>
+                            <th>Motivo / Nota</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in movimientos %}
+                            <tr>
+                                <td>#{{ m.id_movimiento }}</td>
+                                <td>{{ m.fecha }}</td>
+                                <td><strong>{{ m.producto_nombre }}</strong></td>
+                                <td>{{ m.codigo_1 }}</td>
+                                <td>
+                                    <span class="badge {{ 'badge-activo' if (m.cantidad|default(0)|int) > 0 else 'badge-inactivo' }}">
+                                        {{ m.tipo_movimiento }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <strong style="color: {{ 'green' if (m.cantidad|default(0)|int) > 0 else 'red' }};">
+                                        {{ '+' if (m.cantidad|default(0)|int) > 0 else '' }}{{ m.cantidad|default(0) }}
+                                    </strong>
+                                </td>
+                                <td>{{ m.personal_nombre or 'Sistema' }}</td>
+                                <td>{{ '#' ~ m.id_venta if m.id_venta else '-' }}</td>
+                                <td>{{ m.proveedor_nombre or '-' }}</td>
+                                <td>{{ m.motivo_nota or '-' }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state" style="text-align: center; padding: 40px;">
+                No se encontraron movimientos registrados en el historial.
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

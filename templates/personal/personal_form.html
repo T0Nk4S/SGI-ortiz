@@ -1,0 +1,68 @@
+{% extends "shared/base.html" %}
+
+{% block title %}{{ accion }} Usuario{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>{{ accion }} Usuario</h1>
+        <a href="{{ url_for('personal.index') }}" class="btn btn-secondary">Volver al listado</a>
+    </div>
+
+    <form method="post" class="card" autocomplete="off">
+
+        <fieldset>
+            <legend>Datos personales</legend>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Nombres *</label>
+                    <input type="text" name="nombres" required value="{{ persona.nombres if persona else '' }}">
+                </div>
+                <div class="form-group">
+                    <label>Apellido Paterno *</label>
+                    <input type="text" name="apellido_paterno" required value="{{ persona.apellido_paterno if persona else '' }}">
+                </div>
+                <div class="form-group">
+                    <label>Apellido Materno</label>
+                    <input type="text" name="apellido_materno" value="{{ persona.apellido_materno if persona else '' }}">
+                </div>
+                <div class="form-group">
+                    <label>CI *</label>
+                    <input type="text" name="ci" required value="{{ persona.ci if persona else '' }}">
+                </div>
+                <div class="form-group">
+                    <label>Telefono</label>
+                    <input type="text" name="telefono" value="{{ persona.telefono if persona else '' }}">
+                </div>
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend>Acceso al sistema</legend>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Usuario *</label>
+                    <input type="text" name="usuario" required autocomplete="off" value="{{ persona.usuario if persona else '' }}">
+                </div>
+                <div class="form-group">
+                    <label>{{ 'Contrasena *' if accion == 'Crear' else 'Nueva contrasena' }}</label>
+                    <input type="password" name="contrasena" autocomplete="new-password" minlength="6"
+                           {{ 'required' if accion == 'Crear' }}
+                           placeholder="{{ 'Minimo 6 caracteres' if accion == 'Crear' else 'Dejar en blanco para no cambiarla' }}">
+                </div>
+                <div class="form-group">
+                    <label>Rol *</label>
+                    <select name="rol" required>
+                        <option value="Administrador" {{ 'selected' if persona and persona.rol == 'Administrador' }}>Administrador</option>
+                        <option value="Empleado" {{ 'selected' if persona and persona.rol == 'Empleado' }}>Empleado</option>
+                        <option value="Cajero" {{ 'selected' if (not persona) or persona.rol == 'Cajero' }}>Cajero</option>
+                    </select>
+                </div>
+            </div>
+        </fieldset>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-success">Guardar</button>
+            <a href="{{ url_for('personal.index') }}" class="btn btn-secondary">Cancelar</a>
+        </div>
+    </form>
+{% endblock %}

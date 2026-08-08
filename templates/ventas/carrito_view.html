@@ -1,0 +1,132 @@
+{% extends "shared/base.html" %}
+
+{% block title %}Carrito de Venta{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>Carrito de Venta</h1>
+        <a href="{{ url_for('productos.index') }}" class="btn btn-secondary">Seguir agregando productos</a>
+    </div>
+
+    {% if lineas %}
+        <div class="card">
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Cantidad</th>
+                            <th>Tarifa</th>
+                            <th>Precio personalizado</th>
+                            <th>Precio aplicado</th>
+                            <th>Subtotal</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for linea in lineas %}
+                            <tr>
+                                <td>
+                                    <div style="display:flex; align-items:center; gap:8px;">
+                                        {% if linea.producto.foto_url %}
+                                            <img class="thumb" src="{{ url_for('static', filename='uploads/' ~ linea.producto.foto_url) }}" alt="{{ linea.producto.nombre }}">
+                                        {% else %}
+                                            <div class="thumb"></div>
+                                        {% endif %}
+                                        {{ linea.producto.nombre }}
+                                    </div>
+                                </td>
+                                <td colspan="4">
+                                    <form action="{{ url_for('ventas.carrito_actualizar', id_producto=linea.producto.id_producto) }}" method="post"
+                                          style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                                        <input type="number" name="cantidad" min="1" value="{{ linea.cantidad }}" style="width:70px; padding:6px; border:1px solid #d1d5db; border-radius:4px;">
+
+                                        <select name="tipo_precio_aplicado" style="padding:6px; border:1px solid #d1d5db; border-radius:4px;">
+                                            {% for tipo in tipos_precio %}
+                                                <option value="{{ tipo }}" {{ 'selected' if linea.tipo_precio_aplicado == tipo }}>{{ tipo }}</option>
+                                            {% endfor %}
+                                        </select>
+
+                                        <input type="number" step="0.01" min="0" name="precio_personalizado"
+                                               placeholder="Solo si es PERSONALIZADO"
+                                               value="{{ linea.precio_personalizado }}"
+                                               style="width:150px; padding:6px; border:1px solid #d1d5db; border-radius:4px;">
+
+                                        <button type="submit" class="btn btn-primary btn-sm">Actualizar</button>
+                                    </form>
+                                </td>
+                                <td>
+                                    <form action="{{ url_for('ventas.carrito_quitar', id_producto=linea.producto.id_producto) }}" method="post">
+                                        <button type="submit" class="btn btn-danger btn-sm">Quitar</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td colspan="7" style="background:#f9fafb; font-size:0.82rem; color:#6b7280;">
+                                    Precio aplicado: <strong>{{ '%.2f'|format(linea.precio_aplicado) }}</strong>
+                                    &nbsp;|&nbsp; Subtotal: <strong>{{ '%.2f'|format(linea.subtotal) }}</strong>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="text-align:right; font-size:1.1rem; font-weight:bold; margin-top:12px;">
+                Total: {{ '%.2f'|format(total) }}
+            </div>
+
+            <form action="{{ url_for('ventas.carrito_vaciar') }}" method="post" style="margin-top:8px;"
+                  onsubmit="return confirm('¿Vaciar todo el carrito?');">
+                <button type="submit" class="btn btn-secondary btn-sm">Vaciar carrito</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2 style="margin-top:0;">Finalizar Venta</h2>
+            <form method="post" action="{{ url_for('ventas.carrito_finalizar') }}">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Usuario que registra la venta *</label>
+                        <select name="id_personal_registro" required>
+                            <option value="">-- Seleccionar --</option>
+                            {% for p in personal_activo %}
+                                <option value="{{ p.id_personal }}">{{ p.nombres }} {{ p.apellido_paterno }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Ubicacion / Sucursal *</label>
+                        <input type="text" name="ubicacion" required placeholder="Ej: ORTIZ">
+                    </div>
+                    <div class="form-group">
+                        <label>Cliente (nombre y apellido)</label>
+                        <input type="text" name="cliente_nombre" placeholder="Ej: A Cliente X">
+                    </div>
+                    <div class="form-group">
+                        <label>Carnet</label>
+                        <input type="text" name="cliente_ci" placeholder="Ej: 1234567">
+                    </div>
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label>Observaciones</label>
+                        <input type="text" name="observaciones" placeholder="Ej: 4089">
+                    </div>
+                </div>
+
+                <p style="color:#92400e; background:#fef3c7; padding:10px; border-radius:6px; font-size:0.85rem;">
+                    Esta venta quedara <strong>Pendiente</strong> hasta que caja confirme la recepcion del pago desde la pestana Ventas.
+                </p>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-success">Registrar Venta</button>
+                </div>
+            </form>
+        </div>
+    {% else %}
+        <div class="card empty-state">
+            El carrito esta vacio.
+            <br><br>
+            <a href="{{ url_for('productos.index') }}" class="btn btn-success">Ir a Productos</a>
+        </div>
+    {% endif %}
+{% endblock %}

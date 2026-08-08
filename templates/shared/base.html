@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Sistema de Inventario{% endblock %} - Jugueteria</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+    <div class="app-wrapper">
+
+        <!-- ===== Sidebar lateral ===== -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <span class="brand-text">🧸 Inventario Jugueteria</span>
+                <button type="button" class="sidebar-toggle" id="sidebarToggle" title="Contraer/Expandir menu">
+                    <span id="toggleIcon">&laquo;</span>
+                </button>
+            </div>
+
+            <nav class="nav-tabs">
+                <a href="{{ url_for('inicio.index') }}"
+                   class="{{ 'active' if request.endpoint == 'inicio.index' }}">
+                    <span class="nav-icon">🏠</span><span class="nav-text">Inicio</span>
+                </a>
+                
+                <a href="{{ url_for('productos.index') }}"
+                   class="{{ 'active' if request.blueprint == 'productos' }}">
+                    <span class="nav-icon">📦</span><span class="nav-text">Productos</span>
+                </a>
+
+                <a href="{{ url_for('ventas.index') }}"
+                   class="{{ 'active' if request.blueprint == 'ventas' }}">
+                    <span class="nav-icon">💰</span><span class="nav-text">Ventas</span>
+                </a>
+
+                <a href="{{ url_for('movimientos.index') }}"
+                   class="{{ 'active' if request.blueprint == 'movimientos' }}">
+                    <span class="nav-icon">📋</span><span class="nav-text">Movimientos</span>
+                </a>
+
+                {% if session.get('rol') == 'Administrador' %}
+                <a href="{{ url_for('personal.index') }}"
+                   class="{{ 'active' if request.blueprint == 'personal' }}">
+                    <span class="nav-icon">👤</span><span class="nav-text">Usuarios</span>
+                </a>
+                {% endif %}
+
+                <a href="{{ url_for('archivos.index') }}"
+                   class="{{ 'active' if request.blueprint == 'archivos' }}">
+                    <span class="nav-icon">🗂️</span><span class="nav-text">Gestion de Archivos</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="sidebar-user">
+                    <span class="nav-icon">🧑‍💼</span>
+                    <span class="nav-text">{{ session.get('nombre_completo', '') }}<br><small>{{ session.get('rol', '') }}</small></span>
+                </div>
+                <form action="{{ url_for('auth.logout') }}" method="post">
+                    <button type="submit" class="btn btn-secondary btn-sm sidebar-logout" title="Cerrar sesion">Cerrar sesion</button>
+                </form>
+            </div>
+        </aside>
+
+        <!-- ===== Contenido principal ===== -->
+        <main class="main-content">
+            <div class="container">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    {% endif %}
+                {% endwith %}
+
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+
+    </div>
+
+    <script>
+        // Contraer/expandir el sidebar y recordar la preferencia del usuario
+        const sidebar = document.getElementById('sidebar');
+        const toggleBtn = document.getElementById('sidebarToggle');
+        const toggleIcon = document.getElementById('toggleIcon');
+
+        function aplicarEstadoSidebar(colapsado) {
+            sidebar.classList.toggle('collapsed', colapsado);
+            toggleIcon.innerHTML = colapsado ? '&raquo;' : '&laquo;';
+        }
+
+        // Restaurar preferencia guardada al cargar la pagina
+        const estadoGuardado = localStorage.getItem('sidebarColapsado') === 'true';
+        aplicarEstadoSidebar(estadoGuardado);
+
+        toggleBtn.addEventListener('click', function () {
+            const colapsado = !sidebar.classList.contains('collapsed');
+            aplicarEstadoSidebar(colapsado);
+            localStorage.setItem('sidebarColapsado', colapsado);
+        });
+    </script>
+
+</body>
+</html>

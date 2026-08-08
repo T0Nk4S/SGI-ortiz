@@ -1,0 +1,95 @@
+{% extends "shared/base.html" %}
+
+{% block title %}Detalle de {{ producto.nombre }}{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>Detalle del Producto</h1>
+        <div>
+            <a href="{{ url_for('productos.editar', id_producto=producto.id_producto) }}" class="btn btn-primary">Editar</a>
+            <a href="{{ url_for('ventas.carrito_agregar', id_producto=producto.id_producto) }}" class="btn btn-success">Vender</a>
+            <a href="{{ url_for('productos.index') }}" class="btn btn-secondary">Volver</a>
+        </div>
+    </div>
+
+    <div class="card detail-grid">
+        <div>
+            {% if producto.foto_url %}
+                <img src="{{ url_for('static', filename='uploads/' ~ producto.foto_url) }}" alt="{{ producto.nombre }}">
+            {% else %}
+                <div class="thumb" style="width:100%; height:220px;"></div>
+            {% endif %}
+            <p style="margin-top:10px;">
+                <span class="badge {{ 'badge-activo' if producto.estado == 'Activo' else 'badge-inactivo' }}">
+                    {{ producto.estado }}
+                </span>
+                {% if producto.cantidad == 0 %}
+                    <span class="badge badge-inactivo">Agotado</span>
+                {% endif %}
+            </p>
+        </div>
+
+        <div>
+            <h2 style="margin-top:0;">{{ producto.nombre }}</h2>
+            <p style="color:#6b7280;">{{ producto.descripcion or 'Sin descripcion.' }}</p>
+
+            <dl class="detail-list" style="display:grid; grid-template-columns: repeat(3, 1fr); gap: 4px 20px;">
+                <div>
+                    <dt>Codigo 1</dt><dd>{{ producto.codigo_1 or '-' }}</dd>
+                </div>
+                <div>
+                    <dt>Codigo 2</dt><dd>{{ producto.codigo_2 or '-' }}</dd>
+                </div>
+                <div>
+                    <dt>Marca</dt><dd>{{ producto.marca or '-' }}</dd>
+                </div>
+
+                <div>
+                    <dt>PUF</dt><dd>{{ '%.2f'|format(producto.precio_unidad_facturado) }}</dd>
+                </div>
+                <div>
+                    <dt>PDF</dt><dd>{{ '%.2f'|format(producto.precio_docena_facturado) }}</dd>
+                </div>
+                <div>
+                    <dt>PPF</dt><dd>{{ '%.2f'|format(producto.precio_paquete_facturado) }}</dd>
+                </div>
+                <div>
+                    <dt>PPN</dt><dd>{{ '%.2f'|format(producto.precio_paquete_neto) }}</dd>
+                </div>
+                <div>
+                    <dt>PDN</dt><dd>{{ '%.2f'|format(producto.precio_docena_neto) }}</dd>
+                </div>
+                <div>
+                    <dt>PDC</dt><dd>{{ '%.2f'|format(producto.precio_docena_comercial) }}</dd>
+                </div>
+
+                <div>
+                    <dt>Cantidad en stock</dt><dd>{{ producto.cantidad }}</dd>
+                </div>
+                <div>
+                    <dt>Piezas / Paquete</dt><dd>{{ producto.pcs_paquete }}</dd>
+                </div>
+                <div>
+                    <dt>Piezas / Caja</dt><dd>{{ producto.pcs_caja }}</dd>
+                </div>
+
+                <div>
+                    <dt>Ubicacion</dt><dd>{{ producto.ubicacion_nombre or '-' }}</dd>
+                </div>
+                <div>
+                    <dt>Posicion en deposito</dt><dd>{{ producto.posicion or '-' }}</dd>
+                </div>
+                <div>
+                    <dt>Venta en piezas</dt><dd>{{ producto.venta_fraccionada }}</dd>
+                </div>
+
+                <div>
+                    <dt>Descuento</dt><dd>{{ producto.descuento_porcentaje }}%</dd>
+                </div>
+                <div>
+                    <dt>Incremento</dt><dd>{{ producto.incremento_porcentaje }}%</dd>
+                </div>
+            </dl>
+        </div>
+    </div>
+{% endblock %}

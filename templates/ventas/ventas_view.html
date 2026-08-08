@@ -1,0 +1,166 @@
+{% extends "shared/base.html" %}
+
+{% block title %}Ventas{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>Ventas</h1>
+        <a href="{{ url_for('ventas.carrito') }}" class="btn btn-success">🛒 Ver Carrito</a>
+    </div>
+
+    <!-- ===== Lista 1: Ventas pendientes (FIFO) ===== -->
+    <div class="card">
+        <h2 style="margin-top:0;">
+            Ventas Pendientes
+            <span class="badge badge-pendiente" style="font-size:0.75rem;">{{ pendientes|length }}</span>
+        </h2>
+        <p style="color:#6b7280; font-size:0.85rem; margin-top:-6px;">
+            Ordenadas por orden de llegada (FIFO). Confirma en caja al recibir el pago.
+        </p>
+
+        {% if pendientes %}
+            {% for v in pendientes %}
+                <div class="venta-card row-pendiente">
+                    <div class="venta-card-header">
+                        <div>
+                            <strong>{{ v.cliente_nombre }}</strong>
+                            {% if v.cliente_ci %}<span style="color:#6b7280;"> · CI: {{ v.cliente_ci }}</span>{% endif %}
+                            <br>
+                            <span style="font-size:0.82rem; color:#6b7280;">
+                                Registrado por {{ v.usuario_nombre }} &nbsp;|&nbsp; {{ v.ubicacion }}
+                                &nbsp;|&nbsp; {{ v.fecha_venta }} {{ v.hora_venta }}
+                                {% if v.observaciones %}&nbsp;|&nbsp; Obs: {{ v.observaciones }}{% endif %}
+                            </span>
+                        </div>
+                        <div style="font-weight:bold; font-size:1.1rem;">Total: {{ '%.2f'|format(v.total) }}</div>
+                    </div>
+
+                    <table style="margin-top:8px;">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Cantidad</th>
+                                <th>Tarifa</th>
+                                <th>Precio aplicado</th>
+                                <th>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for d in v.detalle %}
+                                <tr>
+                                    <td>
+                                        <div style="display:flex; align-items:center; gap:8px;">
+                                            {% if d.producto_foto %}
+                                                <img class="thumb" src="{{ url_for('static', filename='uploads/' ~ d.producto_foto) }}" alt="{{ d.producto_nombre }}">
+                                            {% else %}
+                                                <div class="thumb"></div>
+                                            {% endif %}
+                                            {{ d.producto_nombre }}
+                                        </div>
+                                    </td>
+                                    <td>{{ d.cantidad }}</td>
+                                    <td>{{ d.tipo_precio_aplicado }}</td>
+                                    <td>{{ '%.2f'|format(d.precio_aplicado) }}</td>
+                                    <td>{{ '%.2f'|format(d.subtotal) }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+
+                    <div style="display:flex; gap:10px; margin-top:10px; align-items:center;">
+                        <form action="{{ url_for('ventas.aprobar', id_venta=v.id_venta) }}" method="post" style="display:flex; gap:6px; align-items:center;">
+                            <select name="id_personal_aprobador" required style="padding:6px; border:1px solid #d1d5db; border-radius:4px; font-size:0.85rem;">
+                                <option value="">Aprobada por...</option>
+                                {% for p in personal_activo %}
+                                    <option value="{{ p.id_personal }}">{{ p.nombres }} {{ p.apellido_paterno }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="btn btn-success btn-sm">Aprobar</button>
+                        </form>
+
+                        <form action="{{ url_for('ventas.rechazar', id_venta=v.id_venta) }}" method="post"
+                              onsubmit="return confirm('¿Rechazar esta venta? El registro no se guardara.');">
+                            <button type="submit" class="btn btn-danger btn-sm">Rechazar</button>
+                        </form>
+                    </div>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">No hay ventas pendientes de aprobacion.</div>
+        {% endif %}
+    </div>
+
+    <!-- ===== Lista 2: Ventas aprobadas ===== -->
+    <div class="card">
+        <h2 style="margin-top:0;">
+            Ventas Realizadas
+            <span class="badge badge-activo" style="font-size:0.75rem;">{{ aprobadas|length }}</span>
+        </h2>
+
+        <form method="get" class="filters">
+            <input type="text" name="busqueda" placeholder="Buscar por producto, cliente, carnet, usuario o ubicacion..." value="{{ busqueda }}" style="min-width:320px;">
+            <button type="submit" class="btn btn-primary">Buscar</button>
+            <a href="{{ url_for('ventas.index') }}" class="btn btn-secondary">Limpiar</a>
+        </form>
+
+        {% if aprobadas %}
+            {% for v in aprobadas %}
+                <div class="venta-card">
+                    <div class="venta-card-header">
+                        <div>
+                            <strong>{{ v.cliente_nombre }}</strong>
+                            {% if v.cliente_ci %}<span style="color:#6b7280;"> · CI: {{ v.cliente_ci }}</span>{% endif %}
+                            <span class="badge badge-activo" style="margin-left:8px;">{{ v.estado }}</span>
+                            <br>
+                            <span style="font-size:0.82rem; color:#6b7280;">
+                                Registrado por {{ v.usuario_nombre }} &nbsp;|&nbsp; Aprobado por {{ v.aprobador_nombre }}
+                                &nbsp;|&nbsp; {{ v.ubicacion }} &nbsp;|&nbsp; {{ v.fecha_venta }} {{ v.hora_venta }}
+                            </span>
+                        </div>
+                        <div style="font-weight:bold; font-size:1.1rem;">Total: {{ '%.2f'|format(v.total) }}</div>
+                    </div>
+
+                    <table style="margin-top:8px;">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Cantidad</th>
+                                <th>Tarifa</th>
+                                <th>Precio aplicado</th>
+                                <th>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for d in v.detalle %}
+                                <tr>
+                                    <td>
+                                        <div style="display:flex; align-items:center; gap:8px;">
+                                            {% if d.producto_foto %}
+                                                <img class="thumb" src="{{ url_for('static', filename='uploads/' ~ d.producto_foto) }}" alt="{{ d.producto_nombre }}">
+                                            {% else %}
+                                                <div class="thumb"></div>
+                                            {% endif %}
+                                            {{ d.producto_nombre }}
+                                        </div>
+                                    </td>
+                                    <td>{{ d.cantidad }}</td>
+                                    <td>{{ d.tipo_precio_aplicado }}</td>
+                                    <td>{{ '%.2f'|format(d.precio_aplicado) }}</td>
+                                    <td>{{ '%.2f'|format(d.subtotal) }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                {% if busqueda %}
+                    No se encontraron ventas aprobadas para "{{ busqueda }}".
+                {% else %}
+                    Aun no hay ventas aprobadas.
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

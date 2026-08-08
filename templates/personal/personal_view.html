@@ -1,0 +1,83 @@
+{% extends "shared/base.html" %}
+
+{% block title %}Usuarios{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>Usuarios del Sistema</h1>
+        <a href="{{ url_for('personal.nuevo') }}" class="btn btn-success">+ Nuevo Usuario</a>
+    </div>
+
+    <form method="get" class="filters">
+        <input type="text" name="busqueda" placeholder="Buscar por nombre, CI o usuario..." value="{{ busqueda }}">
+        <select name="estado">
+            <option value="" {{ 'selected' if not estado_filtro }}>Todos los estados</option>
+            <option value="1" {{ 'selected' if estado_filtro == '1' }}>Activo</option>
+            <option value="0" {{ 'selected' if estado_filtro == '0' }}>Inactivo</option>
+        </select>
+        <button type="submit" class="btn btn-primary">Filtrar</button>
+        <a href="{{ url_for('personal.index') }}" class="btn btn-secondary">Limpiar</a>
+    </form>
+
+    <div class="card">
+        {% if personal %}
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nombres</th>
+                            <th>Apellido Paterno</th>
+                            <th>Apellido Materno</th>
+                            <th>CI</th>
+                            <th>Telefono</th>
+                            <th>Usuario</th>
+                            <th>Rol</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in personal %}
+                            <tr>
+                                <td>{{ p.nombres }}</td>
+                                <td>{{ p.apellido_paterno }}</td>
+                                <td>{{ p.apellido_materno or '-' }}</td>
+                                <td>{{ p.ci }}</td>
+                                <td>{{ p.telefono or '-' }}</td>
+                                <td>{{ p.usuario }}</td>
+                                <td>{{ p.rol }}</td>
+                                <td>
+                                    <span class="badge {{ 'badge-activo' if p.estado == 1 else 'badge-inactivo' }}">
+                                        {{ 'Activo' if p.estado == 1 else 'Inactivo' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="actions-cell">
+                                        <a href="{{ url_for('personal.editar', id_personal=p.id_personal) }}" class="btn btn-primary btn-sm">Editar</a>
+
+                                        <form action="{{ url_for('personal.cambiar_estado', id_personal=p.id_personal) }}" method="post" style="display:inline;">
+                                            <button type="submit" class="btn btn-warning btn-sm">
+                                                {{ 'Desactivar' if p.estado == 1 else 'Activar' }}
+                                            </button>
+                                        </form>
+
+                                        <form action="{{ url_for('personal.eliminar', id_personal=p.id_personal) }}" method="post" style="display:inline;"
+                                              onsubmit="return confirm('¿Eliminar al usuario \'{{ p.usuario }}\'? Esta accion no se puede deshacer.');">
+                                            <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                No se encontraron usuarios.
+                <br><br>
+                <a href="{{ url_for('personal.nuevo') }}" class="btn btn-success">+ Crear el primer usuario</a>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

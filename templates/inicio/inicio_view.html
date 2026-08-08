@@ -1,0 +1,78 @@
+{% extends "shared/base.html" %}
+
+{% block title %}Inicio{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>Dashboard</h1>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.total }}</div>
+            <div class="stat-label">Total de productos</div>
+        </div>
+        <div class="stat-card activo">
+            <div class="stat-value">{{ stats.activos }}</div>
+            <div class="stat-label">Productos activos</div>
+        </div>
+        <div class="stat-card inactivo">
+            <div class="stat-value">{{ stats.inactivos }}</div>
+            <div class="stat-label">Productos inactivos</div>
+        </div>
+        <div class="stat-card sinstock">
+            <div class="stat-value">{{ stats.sin_stock }}</div>
+            <div class="stat-label">Productos sin stock</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{{ stats.stock_total }}</div>
+            <div class="stat-label">Unidades totales en stock</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2 style="margin-top:0;">Ultimos productos registrados</h2>
+
+        {% if stats.ultimos_productos %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Foto</th>
+                        <th>Nombre</th>
+                        <th>Codigo 1</th>
+                        <th>Cantidad</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in stats.ultimos_productos %}
+                        <tr>
+                            <td>
+                                {% if p.foto_url %}
+                                    <img class="thumb" src="{{ url_for('static', filename='uploads/' ~ p.foto_url) }}" alt="{{ p.nombre }}">
+                                {% else %}
+                                    <div class="thumb"></div>
+                                {% endif %}
+                            </td>
+                            <td>{{ p.nombre }}</td>
+                            <td>{{ p.codigo_1 }}</td>
+                            <td>{{ p.cantidad }}</td>
+                            <td>
+                                <span class="badge {{ 'badge-activo' if p.estado == 'Activo' else 'badge-inactivo' }}">
+                                    {{ p.estado }}
+                                </span>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <div class="empty-state">Aun no hay productos registrados. Ve a la pestana Productos para crear el primero.</div>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <a href="{{ url_for('productos.index') }}" class="btn btn-primary">Ir a Productos</a>
+        <a href="{{ url_for('productos.nuevo') }}" class="btn btn-success">+ Nuevo Producto</a>
+    </div>
+{% endblock %}

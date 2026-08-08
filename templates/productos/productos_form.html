@@ -1,0 +1,138 @@
+{% extends "shared/base.html" %}
+
+{% block title %}{{ accion }} Producto{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>{{ accion }} Producto</h1>
+        <a href="{{ url_for('productos.index') }}" class="btn btn-secondary">Volver al listado</a>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" class="card">
+
+        <fieldset>
+            <legend>Informacion basica e identificacion</legend>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Nombre del producto *</label>
+                    <input type="text" name="nombre" required value="{{ producto.nombre if producto else '' }}">
+                </div>
+                <div class="form-group">
+                    <label>Codigo 1 * (unico)</label>
+                    <input type="text" name="codigo_1" required value="{{ producto.codigo_1 if producto else '' }}">
+                </div>
+                <div class="form-group">
+                    <label>Codigo 2</label>
+                    <input type="text" name="codigo_2" value="{{ producto.codigo_2 if producto else '' }}">
+                </div>
+                <div class="form-group">
+                    <label>Marca</label>
+                    <input type="text" name="marca" value="{{ producto.marca if producto else '' }}">
+                </div>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label>Descripcion</label>
+                    <textarea name="descripcion" rows="3">{{ producto.descripcion if producto else '' }}</textarea>
+                </div>
+                <div class="form-group">
+                    <label>Foto del producto</label>
+                    <input type="file" name="foto" accept="image/*">
+                    {% if producto and producto.foto_url %}
+                        <img class="thumb" style="margin-top:6px; width:70px; height:70px;"
+                             src="{{ url_for('static', filename='uploads/' ~ producto.foto_url) }}" alt="Foto actual">
+                        <small>Foto actual (subir una nueva la reemplaza)</small>
+                    {% endif %}
+                </div>
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend>Esquema de precios</legend>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Precio Unidad Facturado (PUF)</label>
+                    <input type="number" step="0.01" min="0" name="precio_unidad_facturado" value="{{ producto.precio_unidad_facturado if producto else 0 }}">
+                </div>
+                <div class="form-group">
+                    <label>Precio Docena Facturado (PDF)</label>
+                    <input type="number" step="0.01" min="0" name="precio_docena_facturado" value="{{ producto.precio_docena_facturado if producto else 0 }}">
+                </div>
+                <div class="form-group">
+                    <label>Precio Paquete Facturado (PPF)</label>
+                    <input type="number" step="0.01" min="0" name="precio_paquete_facturado" value="{{ producto.precio_paquete_facturado if producto else 0 }}">
+                </div>
+                <div class="form-group">
+                    <label>Precio Paquete Neto (PPN)</label>
+                    <input type="number" step="0.01" min="0" name="precio_paquete_neto" value="{{ producto.precio_paquete_neto if producto else 0 }}">
+                </div>
+                <div class="form-group">
+                    <label>Precio Docena Neto (PDN)</label>
+                    <input type="number" step="0.01" min="0" name="precio_docena_neto" value="{{ producto.precio_docena_neto if producto else 0 }}">
+                </div>
+                <div class="form-group">
+                    <label>Precio Docena Comercial (PDC)</label>
+                    <input type="number" step="0.01" min="0" name="precio_docena_comercial" value="{{ producto.precio_docena_comercial if producto else 0 }}">
+                </div>
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend>Inventario, empaque y ubicacion</legend>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Ubicacion</label>
+                    <select name="id_ubicacion">
+                        <option value="">-- Seleccionar --</option>
+                        {% for u in ubicaciones %}
+                            <option value="{{ u.id_ubicacion }}"
+                                {{ 'selected' if producto and producto.id_ubicacion == u.id_ubicacion }}>
+                                {{ u.nombre }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Cantidad (stock, en unidades)</label>
+                    <input type="number" min="0" name="cantidad" value="{{ producto.cantidad if producto else 0 }}">
+                </div>
+                <div class="form-group">
+                    <label>Piezas por Paquete</label>
+                    <input type="number" min="0" name="pcs_paquete" value="{{ producto.pcs_paquete if producto else 0 }}">
+                </div>
+                <div class="form-group">
+                    <label>Piezas por Caja</label>
+                    <input type="number" min="0" name="pcs_caja" value="{{ producto.pcs_caja if producto else 0 }}">
+                </div>
+                <div class="form-group">
+                    <label>Posicion en el deposito</label>
+                    <input type="text" name="posicion" placeholder="Ej: Pasillo A, estante 3" value="{{ producto.posicion if producto else '' }}">
+                </div>
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend>Reglas de negocio y ajustes</legend>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Venta en piezas (fraccionada)</label>
+                    <select name="venta_fraccionada">
+                        <option value="No" {{ 'selected' if producto and producto.venta_fraccionada == 'No' }}>No</option>
+                        <option value="Si" {{ 'selected' if producto and producto.venta_fraccionada == 'Si' }}>Si</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Descuento (%)</label>
+                    <input type="number" step="0.01" min="0" max="100" name="descuento_porcentaje" value="{{ producto.descuento_porcentaje if producto else 0 }}">
+                </div>
+                <div class="form-group">
+                    <label>Incremento (%)</label>
+                    <input type="number" step="0.01" min="0" max="100" name="incremento_porcentaje" value="{{ producto.incremento_porcentaje if producto else 0 }}">
+                </div>
+            </div>
+        </fieldset>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-success">Guardar</button>
+            <a href="{{ url_for('productos.index') }}" class="btn btn-secondary">Cancelar</a>
+        </div>
+    </form>
+{% endblock %}

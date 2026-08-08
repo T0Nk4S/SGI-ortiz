@@ -1,0 +1,66 @@
+{% extends "shared/base.html" %}
+
+{% block title %}Gestion de Archivos{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <div>
+            <h1>Gestion de Archivos</h1>
+            <p class="text-muted" style="color: #6b7280; margin-top: 5px;">
+                📥 Historial de los archivos Excel importados desde Productos, en orden de llegada.
+            </p>
+        </div>
+    </div>
+
+    <form method="get" class="filters">
+        <input type="text" name="busqueda" placeholder="Buscar por nombre de archivo..." value="{{ busqueda }}">
+        <button type="submit" class="btn btn-primary">Filtrar</button>
+        <a href="{{ url_for('archivos.index') }}" class="btn btn-secondary">Limpiar</a>
+    </form>
+
+    <div class="card">
+        {% if archivos %}
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Archivo</th>
+                            <th>Fecha de importacion</th>
+                            <th>Registros procesados</th>
+                            <th>Importado por</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for a in archivos %}
+                            <tr>
+                                <td>#{{ a.id_archivo }}</td>
+                                <td>{{ a.nombre_original }}</td>
+                                <td>{{ a.fecha_importacion }}</td>
+                                <td>
+                                    <span class="badge {{ 'badge-activo' if a.registros_procesados > 0 else 'badge-inactivo' }}">
+                                        {{ a.registros_procesados }}
+                                    </span>
+                                </td>
+                                <td>{{ a.personal_nombre or 'Sistema' }}</td>
+                                <td>
+                                    <a href="{{ url_for('static', filename='uploads/importaciones/' ~ a.nombre_guardado) }}"
+                                       class="btn btn-info btn-sm" download="{{ a.nombre_original }}">
+                                        Descargar
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                Todavia no se ha importado ningun archivo.
+                <br><br>
+                <a href="{{ url_for('productos.index') }}" class="btn btn-success">Ir a Productos para importar</a>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

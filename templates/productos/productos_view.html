@@ -1,0 +1,130 @@
+{% extends "shared/base.html" %}
+
+{% block title %}Productos{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>Productos</h1>
+        <a href="{{ url_for('productos.nuevo') }}" class="btn btn-success">+ Nuevo Producto</a>
+    </div>
+
+    <div class="actions-bar">
+        <form action="{{ url_for('im_ex.importar_productos_excel') }}" method="POST" enctype="multipart/form-data" class="import-form">
+            <input type="file" name="archivo_excel" accept=".xlsx, .xls" required>
+            <button type="submit" class="btn btn-success">📥 Importar</button>
+        </form>
+
+        <a href="{{ url_for('im_ex.exportar_productos_pdf') }}" class="btn btn-danger" target="_blank">
+            📄 Exportar PDF
+        </a>
+    </div>
+
+    <form method="get" class="filters">
+        <input type="text" name="busqueda" placeholder="Buscar por nombre o codigo..." value="{{ busqueda }}">
+        <select name="estado">
+            <option value="" {{ 'selected' if not estado_filtro }}>Todos los estados</option>
+            <option value="Activo" {{ 'selected' if estado_filtro == 'Activo' }}>Activo</option>
+            <option value="Inactivo" {{ 'selected' if estado_filtro == 'Inactivo' }}>Inactivo</option>
+        </select>
+        <button type="submit" class="btn btn-primary">Filtrar</button>
+        <a href="{{ url_for('productos.index') }}" class="btn btn-secondary">Limpiar</a>
+    </form>
+
+    <div class="card">
+        {% if productos %}
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Foto</th>
+                            <th>Nombre</th>
+                            <th>Codigo 1</th>
+                            <th>Codigo 2</th>
+                            <th>Descripcion</th>
+                            <th>Marca</th>
+                            <th>PUF</th>
+                            <th>PDF</th>
+                            <th>PPF</th>
+                            <th>PPN</th>
+                            <th>PDN</th>
+                            <th>PDC</th>
+                            <th>Descuento (%)</th>
+                            <th>Incremento (%)</th>
+                            <th>Pcs/Paquete</th>
+                            <th>Pcs/Caja</th>
+                            <th>Ubicacion</th>
+                            <th>Posicion</th>
+                            <th>Piezas (fraccionada)</th>
+                            <th>Cantidad</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in productos %}
+                            <tr>
+                                <td>
+                                    {% if p.foto_url %}
+                                        <img class="thumb" src="{{ url_for('static', filename='uploads/' ~ p.foto_url) }}" alt="{{ p.nombre }}">
+                                    {% else %}
+                                        <div class="thumb"></div>
+                                    {% endif %}
+                                </td>
+                                <td>{{ p.nombre }}</td>
+                                <td>{{ p.codigo_1 }}</td>
+                                <td>{{ p.codigo_2 }}</td>
+                                <td class="cell-desc" title="{{ p.descripcion }}">{{ p.descripcion }}</td>
+                                <td>{{ p.marca }}</td>
+                                <td>{{ '%.2f'|format(p.precio_unidad_facturado) }}</td>
+                                <td>{{ '%.2f'|format(p.precio_docena_facturado) }}</td>
+                                <td>{{ '%.2f'|format(p.precio_paquete_facturado) }}</td>
+                                <td>{{ '%.2f'|format(p.precio_paquete_neto) }}</td>
+                                <td>{{ '%.2f'|format(p.precio_docena_neto) }}</td>
+                                <td>{{ '%.2f'|format(p.precio_docena_comercial) }}</td>
+                                <td>{{ p.descuento_porcentaje }}</td>
+                                <td>{{ p.incremento_porcentaje }}</td>
+                                <td>{{ p.pcs_paquete }}</td>
+                                <td>{{ p.pcs_caja }}</td>
+                                <td>{{ p.ubicacion_nombre or '-' }}</td>
+                                <td>{{ p.posicion }}</td>
+                                <td>{{ p.venta_fraccionada }}</td>
+                                <td>{{ p.cantidad }}{% if p.cantidad == 0 %} <span class="badge badge-inactivo" style="font-size:0.7rem;">Agotado</span>{% endif %}</td>
+                                <td>
+                                    <span class="badge {{ 'badge-activo' if p.estado == 'Activo' else 'badge-inactivo' }}">
+                                        {{ p.estado }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="actions-cell">
+                                        <a href="{{ url_for('ventas.carrito_agregar', id_producto=p.id_producto) }}" class="btn btn-success btn-sm">Vender</a>
+                                        <a href="{{ url_for('productos.ver', id_producto=p.id_producto) }}" class="btn btn-info btn-sm">Ver</a>
+                                        <a href="{{ url_for('productos.editar', id_producto=p.id_producto) }}" class="btn btn-primary btn-sm">Editar</a>
+
+                                        <form action="{{ url_for('productos.cambiar_estado', id_producto=p.id_producto) }}" method="post" style="display:inline;">
+                                            <button type="submit" class="btn btn-warning btn-sm">
+                                                {{ 'Desactivar' if p.estado == 'Activo' else 'Activar' }}
+                                            </button>
+                                        </form>
+
+                                        <form action="{{ url_for('productos.eliminar', id_producto=p.id_producto) }}" method="post" style="display:inline;"
+                                              onsubmit="return confirm('¿Eliminar el producto \'{{ p.nombre }}\'? Esta accion no se puede deshacer.');">
+                                            <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+                                        </form>
+
+                                        <a href="{{ url_for('productos.generar_qr', id_producto=p.id_producto) }}" class="btn btn-secondary btn-sm">QR</a>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                No se encontraron productos.
+                <br><br>
+                <a href="{{ url_for('productos.nuevo') }}" class="btn btn-success">+ Crear el primer producto</a>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends "shared/base.html" %}
+
+{% block title %}Registrar Venta{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>Registrar Venta</h1>
+        <a href="{{ url_for('productos.index') }}" class="btn btn-secondary">Volver a Productos</a>
+    </div>
+
+    <div class="card">
+        <div style="display:flex; align-items:center; gap:14px; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid #e5e7eb;">
+            {% if producto.foto %}
+                <img class="thumb" style="width:60px; height:60px;" src="{{ url_for('static', filename='uploads/' ~ producto.foto) }}" alt="{{ producto.nombre }}">
+            {% else %}
+                <div class="thumb" style="width:60px; height:60px;"></div>
+            {% endif %}
+            <div>
+                <div style="font-weight:bold; font-size:1.05rem;">{{ producto.nombre }}</div>
+                <div style="color:#6b7280; font-size:0.85rem;">Codigo: {{ producto.codigo1 or '-' }} &nbsp;|&nbsp; PUF: {{ '%.2f'|format(producto.puf) }}</div>
+            </div>
+        </div>
+
+        <form method="post">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Usuario que registra la venta *</label>
+                    <input type="text" name="usuario" required placeholder="Ej: Yeraldin">
+                </div>
+                <div class="form-group">
+                    <label>Ubicacion / Sucursal *</label>
+                    <input type="text" name="ubicacion" required placeholder="Ej: ORTIZ">
+                </div>
+                <div class="form-group">
+                    <label>Cliente *</label>
+                    <input type="text" name="cliente" required placeholder="Ej: A Cliente X">
+                </div>
+                <div class="form-group">
+                    <label>Carnet</label>
+                    <input type="text" name="carnet" placeholder="Ej: 1234567">
+                </div>
+                <div class="form-group" style="grid-column: 1 / -1;">
+                    <label>Observaciones</label>
+                    <input type="text" name="observaciones" placeholder="Ej: 4089">
+                </div>
+            </div>
+
+            <p style="color:#92400e; background:#fef3c7; padding:10px; border-radius:6px; font-size:0.85rem;">
+                Esta venta quedara <strong>Pendiente</strong> hasta que caja confirme la recepcion del pago desde la pestana Ventas.
+            </p>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-success">Registrar Venta</button>
+                <a href="{{ url_for('productos.index') }}" class="btn btn-secondary">Cancelar</a>
+            </div>
+        </form>
+    </div>
+{% endblock %}
