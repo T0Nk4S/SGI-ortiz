@@ -10,10 +10,19 @@
                 Historial de los archivos Excel importados desde Productos, en orden de llegada.
             </p>
         </div>
+        <form action="{{ url_for('archivos.respaldo') }}" method="post">
+            <button type="submit" class="btn btn-danger">💾 Hacer respaldo</button>
+        </form>
     </div>
 
     <form method="get" class="filters">
         <input type="text" name="busqueda" placeholder="Buscar por nombre de archivo..." value="{{ busqueda }}">
+        <select name="orden">
+            <option value="fecha_desc" {{ 'selected' if orden_actual == 'fecha_desc' }}>Fecha (mas reciente primero)</option>
+            <option value="fecha_asc" {{ 'selected' if orden_actual == 'fecha_asc' }}>Fecha (mas antigua primero)</option>
+            <option value="registros_desc" {{ 'selected' if orden_actual == 'registros_desc' }}>Registros procesados (mayor a menor)</option>
+            <option value="registros_asc" {{ 'selected' if orden_actual == 'registros_asc' }}>Registros procesados (menor a mayor)</option>
+        </select>
         <button type="submit" class="btn btn-primary">Filtrar</button>
         <a href="{{ url_for('archivos.index') }}" class="btn btn-secondary">Limpiar</a>
     </form>
@@ -45,8 +54,8 @@
                                 </td>
                                 <td>{{ a.personal_nombre or 'Sistema' }}</td>
                                 <td>
-                                    <a href="{{ url_for('static', filename='uploads/importaciones/' ~ a.nombre_guardado) }}"
-                                       class="btn btn-info btn-sm" download="{{ a.nombre_original }}">
+                                    <a href="{{ url_for('archivos.descargar_importacion', id_archivo=a.id_archivo) }}"
+                                       class="btn btn-info btn-sm">
                                         Descargar
                                     </a>
                                 </td>

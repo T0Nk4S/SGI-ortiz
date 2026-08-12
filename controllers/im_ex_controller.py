@@ -6,17 +6,17 @@ from flask import Blueprint, current_app, request, redirect, session, url_for, f
 
 from models import archivos_model
 from models.productos_model import guardar_o_actualizar_desde_excel, obtener_todos_los_productos
-from utilities.utilities import allowed_file, guardar_archivo_importado
+from utilities.utilities import ROLES_GESTION, allowed_file, guardar_archivo_importado, roles_required
 
 im_ex_bp = Blueprint('im_ex', __name__)
 
 @im_ex_bp.route('/exportar-productos-pdf', methods=['GET'])
+@roles_required(*ROLES_GESTION)
 def exportar_productos_pdf():
     """Exporta el inventario de productos a un PDF sencillo."""
     from reportlab.lib.pagesizes import letter
     from reportlab.lib.styles import getSampleStyleSheet
     from reportlab.lib import colors
-    from reportlab.lib.units import mm
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 
     productos = obtener_todos_los_productos()
@@ -69,6 +69,7 @@ def exportar_productos_pdf():
     )
 
 @im_ex_bp.route('/importar-productos-excel', methods=['POST'])
+@roles_required(*ROLES_GESTION)
 def importar_productos_excel():
     if 'archivo_excel' not in request.files:
         flash('No se seleccionó ningún archivo.', 'danger')
@@ -141,7 +142,10 @@ def importar_productos_excel():
                         'pcs_paquete': to_int(row.get('Piezas por Paquete'), default=1),
                         'pcs_caja': to_int(row.get('Piezas por Caja'), default=1),
                         'ubicacion_nombre': str(row.get('Ubicación', '')).strip() if pd.notna(row.get('Ubicación')) else '',
-                        'cantidad': to_int(row.get('Cantidad'), default=0),
+                        # to_float (no to_int): el stock puede quedar decimal
+                        # por ventas de piezas fraccionadas (ej. 14.5), y una
+                        # reimportacion no debe truncarlo a entero.
+                        'cantidad': to_float(row.get('Cantidad')),
                         'posicion': str(row.get('Posición', '')).strip() if pd.notna(row.get('Posición')) else '',
                         'venta_fraccionada': str(row.get('Docena (si/no)', 'No')).strip().capitalize() if pd.notna(row.get('Docena (si/no)')) else 'No'
                     }

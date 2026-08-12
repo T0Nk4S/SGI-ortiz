@@ -5,11 +5,26 @@ No debe contener logica de rutas ni de renderizado de vistas.
 """
 from models import movimientos_model
 from models.database import get_db, obtener_conexion
+from utilities.utilities import resolver_orden_sql
+
+# Whitelist de ordenamientos disponibles para el listado de Productos (ver
+# resolver_orden_sql): el valor viene del select "Ordenar por" del filtro.
+ORDENES_PRODUCTOS = {
+    'nombre_asc': 'p.nombre COLLATE NOCASE ASC',
+    'nombre_desc': 'p.nombre COLLATE NOCASE DESC',
+    'codigo_asc': 'p.codigo_1 COLLATE NOCASE ASC',
+    'codigo_desc': 'p.codigo_1 COLLATE NOCASE DESC',
+    'cantidad_asc': 'p.cantidad ASC',
+    'cantidad_desc': 'p.cantidad DESC',
+    'precio_asc': 'p.precio_unidad_facturado ASC',
+    'precio_desc': 'p.precio_unidad_facturado DESC',
+}
+ORDEN_PRODUCTOS_DEFAULT = 'nombre_asc'
 
 
-def get_all_productos(estado=None, busqueda=None):
-    """Lista productos, con filtro opcional por estado y por texto
-    (busca en nombre, codigo_1 y codigo_2)."""
+def get_all_productos(estado=None, busqueda=None, orden=None):
+    """Lista productos, con filtro opcional por estado, por texto (busca
+    en nombre, codigo_1 y codigo_2) y por ordenamiento (ver ORDENES_PRODUCTOS)."""
     db = get_db()
     query = """
         SELECT p.*, u.nombre AS ubicacion_nombre
@@ -28,7 +43,8 @@ def get_all_productos(estado=None, busqueda=None):
         like = f"%{busqueda}%"
         params.extend([like, like, like])
 
-    query += " ORDER BY p.nombre ASC"
+    orden_sql = resolver_orden_sql(orden, ORDENES_PRODUCTOS, ORDEN_PRODUCTOS_DEFAULT)
+    query += f" ORDER BY {orden_sql}"
 
     return db.execute(query, params).fetchall()
 
@@ -47,10 +63,52 @@ def get_producto(id_producto):
     ).fetchone()
 
 
+def get_producto_por_codigo(codigo_1, codigo_2=None):
+    """Resuelve un producto escaneado por QR. codigo_1 YA NO identifica un
+    producto de forma unica por si solo (el cliente confirmo que se repite
+    entre productos distintos en su catalogo real, ver migrar_codigo1_no_unico
+    en database.py) - lo que si es unico es la combinacion codigo_1 + codigo_2.
+
+    - Si se entrega codigo_2 (cualquier QR nuevo, ver productos_controller.
+      _texto_qr_producto), se exige que matcheen los DOS: identificacion exacta.
+    - Si no se entrega codigo_2 (una etiqueta vieja, impresa antes de este
+      cambio, que solo trae codigo_1), se resuelve por codigo_1 solo SI hay
+      un unico producto con ese codigo - si hay mas de uno, no hay forma de
+      saber cual es sin el codigo_2 y no hay que arriesgarse a devolver el
+      equivocado.
+
+    Devuelve (producto_o_None, ambiguo): `ambiguo=True` cuando codigo_1 por
+    si solo no alcanza para desempatar entre varios productos (el caller
+    debe pedir volver a escanear con una etiqueta que traiga codigo_2, o
+    reimprimirla)."""
+    db = get_db()
+    base = """
+        SELECT p.*, u.nombre AS ubicacion_nombre
+        FROM productos p
+        LEFT JOIN ubicaciones u ON p.id_ubicacion = u.id_ubicacion
+        WHERE p.codigo_1 = ?
+    """
+    if codigo_2:
+        producto = db.execute(base + " AND p.codigo_2 = ?", (codigo_1, codigo_2)).fetchone()
+        return producto, False
+
+    candidatos = db.execute(base, (codigo_1,)).fetchall()
+    if len(candidatos) == 1:
+        return candidatos[0], False
+    return None, len(candidatos) > 1
+
+
 def contar_productos():
     """Conteo rapido del catalogo, usado para el contador del sidebar."""
     db = get_db()
     return db.execute("SELECT COUNT(*) AS c FROM productos").fetchone()['c']
+
+
+def contar_faltantes():
+    """Conteo rapido de productos con stock negativo (a reponer del
+    almacen), usado para el badge del sidebar en Inicio."""
+    db = get_db()
+    return db.execute("SELECT COUNT(*) AS c FROM productos WHERE cantidad < 0").fetchone()['c']
 
 
 def get_ubicaciones():
@@ -129,6 +187,16 @@ def delete_producto(id_producto):
     db.commit()
 
 
+def actualizar_cantidad(id_producto, cantidad):
+    """Actualiza UNICAMENTE la cantidad de un producto (a diferencia de
+    update_producto, que pisa todos los campos) - usada por la accion de
+    reponer stock, para que un rol con permiso limitado no pueda tocar
+    precio/nombre/etc a traves de esa ruta."""
+    db = get_db()
+    db.execute("UPDATE productos SET cantidad = ? WHERE id_producto = ?", (cantidad, id_producto))
+    db.commit()
+
+
 def cambiar_estado(id_producto):
     """Alterna el estado de un producto entre Activo <-> Inactivo."""
     db = get_db()
@@ -144,9 +212,52 @@ def cambiar_estado(id_producto):
         db.commit()
 
 
+PIEZAS_DOCENA = 12
+
+
+def _formatear_faltante(producto):
+    """Texto legible para el faltante de un producto (cantidad negativa):
+    prueba caja, luego paquete, luego docena (en ese orden, el mas grande
+    primero) si el faltante es multiplo exacto de ese contenedor; si no
+    calza con ninguno, lo deja en piezas."""
+    piezas = abs(producto['cantidad'])
+    pcs_caja = producto['pcs_caja'] or 0
+    pcs_paquete = producto['pcs_paquete'] or 0
+
+    if pcs_caja > 0 and piezas % pcs_caja == 0:
+        n = int(piezas / pcs_caja)
+        return f"{n} caja{'s' if n != 1 else ''}"
+    if pcs_paquete > 0 and piezas % pcs_paquete == 0:
+        n = int(piezas / pcs_paquete)
+        return f"{n} paquete{'s' if n != 1 else ''}"
+    if piezas % PIEZAS_DOCENA == 0:
+        n = int(piezas / PIEZAS_DOCENA)
+        return f"{n} docena{'s' if n != 1 else ''}"
+    return f"{piezas:g} pieza{'s' if piezas != 1 else ''}"
+
+
+def obtener_productos_con_faltante():
+    """Productos cuyo stock quedo en negativo (se aprobo una venta por mas
+    de lo que habia en tienda) -> lo que hay que reponer desde el almacen.
+    Se recalcula en vivo desde `cantidad`, no hay tabla ni estado aparte:
+    en cuanto se repone (edita el producto y sube la cantidad), deja de
+    aparecer solo."""
+    db = get_db()
+    productos = db.execute(
+        "SELECT * FROM productos WHERE cantidad < 0 ORDER BY cantidad ASC"
+    ).fetchall()
+    resultado = []
+    for producto in productos:
+        item = dict(producto)
+        item['faltante_texto'] = _formatear_faltante(producto)
+        resultado.append(item)
+    return resultado
+
+
 def get_estadisticas():
     """Estadisticas basicas para el dashboard (Inicio).
-    'Sin stock' se calcula al vuelo (cantidad = 0), no se guarda en la BD."""
+    'Sin stock' se calcula al vuelo (cantidad <= 0: exactamente agotado o
+    con faltante negativo), no se guarda en la BD."""
     db = get_db()
     total = db.execute("SELECT COUNT(*) AS c FROM productos").fetchone()['c']
     activos = db.execute(
@@ -156,7 +267,7 @@ def get_estadisticas():
         "SELECT COUNT(*) AS c FROM productos WHERE estado = 'Inactivo'"
     ).fetchone()['c']
     sin_stock = db.execute(
-        "SELECT COUNT(*) AS c FROM productos WHERE cantidad = 0"
+        "SELECT COUNT(*) AS c FROM productos WHERE cantidad <= 0"
     ).fetchone()['c']
     stock_total = db.execute(
         "SELECT COALESCE(SUM(cantidad), 0) AS s FROM productos"
@@ -172,6 +283,7 @@ def get_estadisticas():
         'sin_stock': sin_stock,
         'stock_total': stock_total,
         'ultimos_productos': ultimos_productos,
+        'faltantes': obtener_productos_con_faltante(),
     }
 
 def obtener_todos_los_productos():
@@ -267,10 +379,14 @@ def guardar_o_actualizar_desde_excel(datos=None, nombre=None, precio=None, costo
             )
             id_ubicacion = cursor.lastrowid
 
-    # 2. Verificar si el producto ya existe por codigo_1
+    # 2. Verificar si el producto ya existe, por la combinacion codigo_1 +
+    # codigo_2 (codigo_1 solo NO alcanza: el cliente confirmo que se repite
+    # entre productos distintos en su catalogo real -matchear solo por
+    # codigo_1 aca pisaria silenciosamente un producto con los datos de
+    # otro cada vez que coincida el codigo_1 pero sean productos distintos).
     cursor.execute(
-        "SELECT id_producto, cantidad FROM productos WHERE codigo_1 = ?",
-        (data['codigo_1'],),
+        "SELECT id_producto, cantidad FROM productos WHERE codigo_1 = ? AND codigo_2 = ?",
+        (data['codigo_1'], data['codigo_2']),
     )
     existente = cursor.fetchone()
 

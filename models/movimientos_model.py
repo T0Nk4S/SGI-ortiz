@@ -3,6 +3,18 @@ movimientos_model.py
 Capa de acceso a datos para el historial de movimientos / Kardex.
 """
 from models.database import get_db
+from utilities.utilities import resolver_orden_sql
+
+# Whitelist de ordenamientos disponibles para el Kardex (ver resolver_orden_sql).
+ORDENES_MOVIMIENTOS = {
+    'fecha_desc': 'm.fecha DESC, m.id_movimiento DESC',
+    'fecha_asc': 'm.fecha ASC, m.id_movimiento ASC',
+    'cantidad_desc': 'm.cantidad DESC',
+    'cantidad_asc': 'm.cantidad ASC',
+    'producto_asc': 'p.nombre COLLATE NOCASE ASC',
+    'producto_desc': 'p.nombre COLLATE NOCASE DESC',
+}
+ORDEN_MOVIMIENTOS_DEFAULT = 'fecha_desc'
 
 
 def registrar_movimiento(id_producto, id_personal, tipo_movimiento, cantidad,
@@ -24,8 +36,9 @@ def registrar_movimiento(id_producto, id_personal, tipo_movimiento, cantidad,
     db.commit()
 
 
-def get_movimientos(busqueda=None, tipo_movimiento=None):
-    """Devuelve el kardex de movimientos, con filtros de texto y tipo."""
+def get_movimientos(busqueda=None, tipo_movimiento=None, orden=None):
+    """Devuelve el kardex de movimientos, con filtros de texto, tipo y
+    ordenamiento (ver ORDENES_MOVIMIENTOS)."""
     db = get_db()
     query = """
         SELECT m.*, p.nombre AS producto_nombre, p.codigo_1 AS codigo_1,
@@ -48,5 +61,6 @@ def get_movimientos(busqueda=None, tipo_movimiento=None):
         query += " AND m.tipo_movimiento = ?"
         params.append(tipo_movimiento)
 
-    query += " ORDER BY m.fecha DESC, m.id_movimiento DESC"
+    orden_sql = resolver_orden_sql(orden, ORDENES_MOVIMIENTOS, ORDEN_MOVIMIENTOS_DEFAULT)
+    query += f" ORDER BY {orden_sql}"
     return db.execute(query, params).fetchall()

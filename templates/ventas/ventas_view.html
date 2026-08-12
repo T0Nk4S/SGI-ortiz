@@ -27,10 +27,21 @@
                             {% if v.cliente_ci %}<span style="color:#6b7280;"> · CI: {{ v.cliente_ci }}</span>{% endif %}
                             <br>
                             <span style="font-size:0.82rem; color:#6b7280;">
+                                Código: {{ v.codigo_venta }} &nbsp;|&nbsp;
                                 Registrado por {{ v.usuario_nombre }} &nbsp;|&nbsp; {{ v.ubicacion }}
                                 &nbsp;|&nbsp; {{ v.fecha_venta }} {{ v.hora_venta }}
                                 {% if v.observaciones %}&nbsp;|&nbsp; Obs: {{ v.observaciones }}{% endif %}
                             </span>
+                            {% if v.numero_factura %}
+                                <div style="margin-top:6px; display:flex; align-items:center; gap:8px;">
+                                    <span class="badge badge-pendiente">🧾 Factura N° {{ v.numero_factura }}</span>
+                                    {% if v.foto_factura %}
+                                        <a href="{{ url_for('ventas.factura_imagen', id_venta=v.id_venta) }}" target="_blank" title="Ver foto de la factura">
+                                            <img class="thumb" src="{{ url_for('ventas.factura_imagen', id_venta=v.id_venta) }}" alt="Foto de factura N° {{ v.numero_factura }}">
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
                         </div>
                         <div style="font-weight:bold; font-size:1.1rem;">Total: {{ '%.2f'|format(v.total) }}</div>
                     </div>
@@ -58,8 +69,11 @@
                                             {{ d.producto_nombre }}
                                         </div>
                                     </td>
-                                    <td>{{ d.cantidad }}</td>
-                                    <td>{{ d.tipo_precio_aplicado }}</td>
+                                    <td>{{ '%.2f'|format(d.cantidad) if d.unidad_venta else d.cantidad }}</td>
+                                    <td>
+                                        {{ d.tipo_precio_aplicado }}
+                                        {% if d.unidad_venta %}<br><small style="color:#6b7280;">{{ d.unidad_venta|capitalize }}</small>{% endif %}
+                                    </td>
                                     <td>{{ '%.2f'|format(d.precio_aplicado) }}</td>
                                     <td>{{ '%.2f'|format(d.subtotal) }}</td>
                                 </tr>
@@ -67,7 +81,7 @@
                         </tbody>
                     </table>
 
-                    <div style="display:flex; gap:10px; margin-top:10px; align-items:center;">
+                    <div style="display:flex; gap:10px; margin-top:10px; align-items:center; flex-wrap:wrap;">
                         <form action="{{ url_for('ventas.aprobar', id_venta=v.id_venta) }}" method="post" style="display:flex; gap:8px; align-items:center;">
                             <button type="submit" class="btn btn-success btn-sm">Aprobar</button>
                             <span style="font-size:0.78rem; color:#6b7280;">como {{ session.get('nombre_completo') }}</span>
@@ -77,6 +91,9 @@
                               data-confirm="¿Rechazar esta venta? El registro no se guardara.">
                             <button type="submit" class="btn btn-danger btn-sm">Rechazar</button>
                         </form>
+
+                        <a href="{{ url_for('ventas.pdf_venta_cliente', id_venta=v.id_venta) }}" target="_blank" class="btn btn-secondary btn-sm">🧾 Venta para cliente</a>
+                        <a href="{{ url_for('ventas.pdf_resumen_cuenta', id_venta=v.id_venta) }}" target="_blank" class="btn btn-secondary btn-sm">📋 Resumen de cuenta</a>
                     </div>
                 </div>
             {% endfor %}
@@ -94,13 +111,21 @@
 
         <form method="get" class="filters">
             <input type="text" name="busqueda" placeholder="Buscar por producto, cliente, carnet, usuario o ubicacion..." value="{{ busqueda }}" style="min-width:320px;">
+            <select name="orden">
+                <option value="fecha_asc" {{ 'selected' if orden_actual == 'fecha_asc' }}>Fecha (mas antigua primero)</option>
+                <option value="fecha_desc" {{ 'selected' if orden_actual == 'fecha_desc' }}>Fecha (mas reciente primero)</option>
+                <option value="total_desc" {{ 'selected' if orden_actual == 'total_desc' }}>Total (mayor a menor)</option>
+                <option value="total_asc" {{ 'selected' if orden_actual == 'total_asc' }}>Total (menor a mayor)</option>
+                <option value="cliente_asc" {{ 'selected' if orden_actual == 'cliente_asc' }}>Cliente (A-Z)</option>
+                <option value="cliente_desc" {{ 'selected' if orden_actual == 'cliente_desc' }}>Cliente (Z-A)</option>
+            </select>
             <button type="submit" class="btn btn-primary">Buscar</button>
             <a href="{{ url_for('ventas.index') }}" class="btn btn-secondary">Limpiar</a>
         </form>
 
         {% if aprobadas %}
             {% for v in aprobadas %}
-                <div class="venta-card">
+                <div class="venta-card row-aprobada">
                     <div class="venta-card-header">
                         <div>
                             <strong>{{ v.cliente_nombre }}</strong>
@@ -108,9 +133,20 @@
                             <span class="badge badge-activo" style="margin-left:8px;">{{ v.estado }}</span>
                             <br>
                             <span style="font-size:0.82rem; color:#6b7280;">
+                                Código: {{ v.codigo_venta }} &nbsp;|&nbsp;
                                 Registrado por {{ v.usuario_nombre }} &nbsp;|&nbsp; Aprobado por {{ v.aprobador_nombre }}
                                 &nbsp;|&nbsp; {{ v.ubicacion }} &nbsp;|&nbsp; {{ v.fecha_venta }} {{ v.hora_venta }}
                             </span>
+                            {% if v.numero_factura %}
+                                <div style="margin-top:6px; display:flex; align-items:center; gap:8px;">
+                                    <span class="badge badge-activo">🧾 Factura N° {{ v.numero_factura }}</span>
+                                    {% if v.foto_factura %}
+                                        <a href="{{ url_for('ventas.factura_imagen', id_venta=v.id_venta) }}" target="_blank" title="Ver foto de la factura">
+                                            <img class="thumb" src="{{ url_for('ventas.factura_imagen', id_venta=v.id_venta) }}" alt="Foto de factura N° {{ v.numero_factura }}">
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
                         </div>
                         <div style="font-weight:bold; font-size:1.1rem;">Total: {{ '%.2f'|format(v.total) }}</div>
                     </div>
@@ -138,14 +174,23 @@
                                             {{ d.producto_nombre }}
                                         </div>
                                     </td>
-                                    <td>{{ d.cantidad }}</td>
-                                    <td>{{ d.tipo_precio_aplicado }}</td>
+                                    <td>{{ '%.2f'|format(d.cantidad) if d.unidad_venta else d.cantidad }}</td>
+                                    <td>
+                                        {{ d.tipo_precio_aplicado }}
+                                        {% if d.unidad_venta %}<br><small style="color:#6b7280;">{{ d.unidad_venta|capitalize }}</small>{% endif %}
+                                    </td>
                                     <td>{{ '%.2f'|format(d.precio_aplicado) }}</td>
                                     <td>{{ '%.2f'|format(d.subtotal) }}</td>
                                 </tr>
                             {% endfor %}
                         </tbody>
                     </table>
+
+                    <div style="display:flex; gap:10px; margin-top:10px; align-items:center; flex-wrap:wrap;">
+                        <a href="{{ url_for('ventas.pdf_venta_cliente', id_venta=v.id_venta) }}" target="_blank" class="btn btn-secondary btn-sm">🧾 Venta para cliente</a>
+                        <a href="{{ url_for('ventas.pdf_resumen_cuenta', id_venta=v.id_venta) }}" target="_blank" class="btn btn-secondary btn-sm">📋 Resumen de cuenta</a>
+                        <a href="{{ url_for('ventas.pdf_venta_almacen', id_venta=v.id_venta) }}" target="_blank" class="btn btn-secondary btn-sm">🏬 Venta para almacén</a>
+                    </div>
                 </div>
             {% endfor %}
         {% else %}

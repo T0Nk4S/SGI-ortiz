@@ -6,8 +6,12 @@
     <div class="page-header">
         <h1>Detalle del Producto</h1>
         <div>
-            <a href="{{ url_for('productos.editar', id_producto=producto.id_producto) }}" class="btn btn-primary">Editar</a>
-            <a href="{{ url_for('ventas.carrito_agregar', id_producto=producto.id_producto) }}" class="btn btn-success">Vender</a>
+            {% if session.get('rol') in ROLES_GESTION %}
+                <a href="{{ url_for('productos.editar', id_producto=producto.id_producto) }}" class="btn btn-primary">Editar</a>
+            {% endif %}
+            {% if session.get('rol') in ROLES_VENTAS %}
+                <a href="{{ url_for('ventas.carrito_agregar', id_producto=producto.id_producto) }}" class="btn btn-success">Vender</a>
+            {% endif %}
             <button type="button" class="btn btn-secondary" data-modal-open="modalQr">QR</button>
             <a href="{{ url_for('productos.index') }}" class="btn btn-secondary">Volver</a>
         </div>
@@ -24,7 +28,7 @@
                 <span class="badge {{ 'badge-activo' if producto.estado == 'Activo' else 'badge-inactivo' }}">
                     {{ producto.estado }}
                 </span>
-                {% if producto.cantidad == 0 %}
+                {% if producto.cantidad <= 0 %}
                     <span class="badge badge-inactivo">Agotado</span>
                 {% endif %}
             </p>
@@ -106,8 +110,12 @@
                      style="width:220px; height:220px; margin:0 auto; display:block; border:1px solid var(--border); border-radius:var(--radius-md); background:#fff;">
                 <p class="cart-note">Escanealo con la camara de un celular para ver los datos del producto.</p>
             </div>
-            <div class="modal-footer">
+            <div class="modal-footer" style="flex-wrap: wrap; gap: 8px;">
                 <a href="{{ url_for('productos.qr_imagen', id_producto=producto.id_producto) }}" download class="btn btn-success">⬇ Descargar</a>
+                <a href="{{ url_for('productos.etiqueta', id_producto=producto.id_producto, tamano='pequena') }}" target="_blank"
+                   class="btn btn-danger" title="Etiqueta 5.6 x 4.5 cm">🖨️ Imprimir chica</a>
+                <a href="{{ url_for('productos.etiqueta', id_producto=producto.id_producto, tamano='grande') }}" target="_blank"
+                   class="btn btn-danger" title="Etiqueta 10 x 15 cm">🖨️ Imprimir grande</a>
                 <button type="button" class="btn btn-secondary" data-modal-close>Cerrar</button>
             </div>
         </div>

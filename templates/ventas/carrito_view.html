@@ -38,22 +38,47 @@
                             {% endif %}
                         </div>
 
-                        <form action="{{ url_for('ventas.carrito_actualizar', id_producto=linea.producto.id_producto) }}" method="post" class="cart-item-controls">
+                        <form action="{{ url_for('ventas.carrito_actualizar', id_producto=linea.producto.id_producto) }}" method="post" class="cart-item-controls"
+                              data-precios='{{ linea.precios_por_tarifa | tojson }}'
+                              data-pcs-paquete="{{ linea.producto.pcs_paquete or 0 }}"
+                              data-pcs-caja="{{ linea.producto.pcs_caja or 0 }}">
                             <div class="qty-stepper">
                                 <button type="button" class="qty-btn" data-delta="-1" aria-label="Restar uno">−</button>
                                 <input type="number" name="cantidad" min="1" value="{{ linea.cantidad }}" class="qty-input" aria-label="Cantidad">
                                 <button type="button" class="qty-btn" data-delta="1" aria-label="Sumar uno">+</button>
                             </div>
 
-                            <select name="tipo_precio_aplicado" aria-label="Tarifa">
+                            <label class="pieza-toggle">
+                                <input type="checkbox" name="modo_pieza" class="modo-pieza-check" {{ 'checked' if linea.unidad_venta }}>
+                                Pago por piezas
+                            </label>
+
+                            <div class="factura-toggle" role="radiogroup" aria-label="Con o sin factura">
+                                <label>
+                                    <input type="radio" name="con_factura" value="con" class="factura-radio" {{ 'checked' if linea.factura_actual != 'sin' }}>
+                                    Con factura
+                                </label>
+                                <label>
+                                    <input type="radio" name="con_factura" value="sin" class="factura-radio" {{ 'checked' if linea.factura_actual == 'sin' }}>
+                                    Sin factura
+                                </label>
+                            </div>
+
+                            <select name="tipo_precio_aplicado" class="tarifa-select" aria-label="Tarifa">
                                 {% for tipo, precio in linea.precios_por_tarifa.items() %}
                                     <option value="{{ tipo }}" {{ 'selected' if linea.tipo_precio_aplicado == tipo }}>
                                         {{ tipo }} ({{ '%.2f'|format(precio) }})
                                     </option>
                                 {% endfor %}
-                                <option value="PERSONALIZADO" {{ 'selected' if linea.tipo_precio_aplicado == 'PERSONALIZADO' }}>
+                                <option value="PERSONALIZADO" class="opcion-personalizado" {{ 'selected' if linea.tipo_precio_aplicado == 'PERSONALIZADO' }}>
                                     PERSONALIZADO
                                 </option>
+                            </select>
+
+                            <select name="unidad_venta" class="unidad-venta-select" aria-label="Unidad de venta">
+                                {% for unidad in linea.unidades_disponibles %}
+                                    <option value="{{ unidad }}" {{ 'selected' if linea.unidad_venta == unidad }}>{{ unidad|capitalize }}</option>
+                                {% endfor %}
                             </select>
 
                             <input type="number" step="0.01" min="0" name="precio_personalizado"
@@ -61,12 +86,17 @@
                                    value="{{ linea.precio_personalizado }}"
                                    class="precio-personalizado-input" aria-label="Precio personalizado">
 
+                            <div class="pieza-preview"></div>
+
                             <button type="submit" class="btn btn-primary btn-sm">Actualizar</button>
                         </form>
 
                         <div class="cart-item-price">
                             {{ '%.2f'|format(linea.subtotal) }}
                             <small>{{ '%.2f'|format(linea.precio_aplicado) }} c/u</small>
+                            {% if linea.unidad_venta %}
+                                <small class="pieza-info">{{ linea.unidad_venta|capitalize }} · {{ '%.2f'|format(linea.cantidad_piezas) }} piezas</small>
+                            {% endif %}
                         </div>
 
                         <form action="{{ url_for('ventas.carrito_quitar', id_producto=linea.producto.id_producto) }}" method="post">
@@ -89,7 +119,7 @@
                 </div>
                 <div class="cart-summary-row">
                     <span>Unidades totales</span>
-                    <span>{{ lineas|sum(attribute='cantidad') }}</span>
+                    <span>{{ '%.2f'|format(lineas|sum(attribute='cantidad_piezas')) }}</span>
                 </div>
                 <div class="cart-summary-total">
                     <span>Total</span>
@@ -131,4 +161,128 @@
             <a href="{{ url_for('productos.index') }}" class="btn btn-success">Ir a Productos</a>
         </div>
     {% endif %}
+
+    <script>
+        // "Pago por piezas": muestra/oculta el selector de unidad de venta
+        // segun el checkbox, y calcula un preview en vivo (piezas + precio)
+        // para que el cajero vea el resultado sin tener que enviar el
+        // formulario. El precio real que se cobra SIEMPRE se recalcula en
+        // el servidor al enviar (ver ventas_model.resolver_venta_pieza) -
+        // este calculo es solo para agilizar la vista, no es la fuente de
+        // verdad del precio.
+        const PIEZAS_DOCENA = 12;
+        const TARIFAS_DOCENA = ['PDF', 'PDN', 'PDC'];
+        const TARIFAS_PAQUETE = ['PPF', 'PPN'];
+        const TARIFAS_CON_FACTURA = ['PUF', 'PDF', 'PPF'];
+        const TARIFAS_SIN_FACTURA = ['PPN', 'PDN', 'PDC'];
+
+        function piezasContenedor(tarifa, pcsPaquete) {
+            if (tarifa === 'PUF') return 1;
+            if (TARIFAS_DOCENA.includes(tarifa)) return PIEZAS_DOCENA;
+            if (TARIFAS_PAQUETE.includes(tarifa)) return pcsPaquete || 0;
+            return 0;
+        }
+
+        document.querySelectorAll('.cart-item-controls').forEach(function (form) {
+            const precios = JSON.parse(form.dataset.precios || '{}');
+            const pcsPaquete = parseInt(form.dataset.pcsPaquete, 10) || 0;
+            const pcsCaja = parseInt(form.dataset.pcsCaja, 10) || 0;
+
+            const chkModoPieza = form.querySelector('.modo-pieza-check');
+            const facturaToggle = form.querySelector('.factura-toggle');
+            const radiosFactura = Array.from(form.querySelectorAll('.factura-radio'));
+            const selectUnidad = form.querySelector('.unidad-venta-select');
+            const selectTarifa = form.querySelector('.tarifa-select');
+            const opcionPersonalizado = form.querySelector('.opcion-personalizado');
+            const inputCantidad = form.querySelector('.qty-input');
+            const inputPrecioManual = form.querySelector('.precio-personalizado-input');
+            const preview = form.querySelector('.pieza-preview');
+
+            function actualizarFiltroTarifa() {
+                const activo = chkModoPieza.checked;
+                const radioMarcado = radiosFactura.find(function (r) { return r.checked; });
+                const grupo = radioMarcado && radioMarcado.value === 'sin' ? TARIFAS_SIN_FACTURA : TARIFAS_CON_FACTURA;
+
+                let huboOpcionVisible = false;
+                Array.from(selectTarifa.options).forEach(function (opcion) {
+                    if (opcion.value === 'PERSONALIZADO') return;
+                    const visible = !activo || grupo.includes(opcion.value);
+                    opcion.hidden = !visible;
+                    opcion.disabled = !visible;
+                    if (visible) huboOpcionVisible = true;
+                });
+
+                if (activo && selectTarifa.selectedOptions[0] && selectTarifa.selectedOptions[0].hidden) {
+                    const primeraVisible = Array.from(selectTarifa.options).find(function (o) { return !o.hidden; });
+                    if (primeraVisible) selectTarifa.value = primeraVisible.value;
+                }
+                preview.classList.toggle('pieza-preview-vacio', activo && !huboOpcionVisible);
+            }
+
+            function actualizarVisibilidad() {
+                const activo = chkModoPieza.checked;
+                facturaToggle.style.display = activo ? '' : 'none';
+                selectUnidad.style.display = activo ? '' : 'none';
+                inputPrecioManual.style.display = activo ? 'none' : '';
+                opcionPersonalizado.disabled = activo;
+                if (activo && selectTarifa.value === 'PERSONALIZADO' && selectTarifa.options.length > 1) {
+                    selectTarifa.selectedIndex = 0;
+                }
+                actualizarFiltroTarifa();
+            }
+
+            function actualizarPreview() {
+                if (!chkModoPieza.checked) {
+                    preview.textContent = '';
+                    return;
+                }
+                if (selectTarifa.selectedOptions[0] && selectTarifa.selectedOptions[0].hidden) {
+                    preview.textContent = 'Este producto no tiene tarifas cargadas para esa opcion (con/sin factura).';
+                    return;
+                }
+                const tarifa = selectTarifa.value;
+                const unidad = selectUnidad.value;
+                const cantidad = parseInt(inputCantidad.value, 10) || 0;
+                const precioTarifa = precios[tarifa] || 0;
+                const contenedor = piezasContenedor(tarifa, pcsPaquete);
+
+                if (!contenedor || !precioTarifa || !unidad) {
+                    preview.textContent = 'Elegi una tarifa valida para calcular.';
+                    return;
+                }
+
+                const precioPorPieza = precioTarifa / contenedor;
+                const piezasPorUnidad = {
+                    pieza: 1,
+                    cuarta: contenedor / 4,
+                    media: contenedor / 2,
+                    docena: PIEZAS_DOCENA,
+                    paquete: pcsPaquete,
+                    caja: pcsCaja,
+                }[unidad] || 0;
+
+                const piezasTotales = piezasPorUnidad * cantidad;
+                const precioTotal = precioPorPieza * piezasTotales;
+                preview.textContent = piezasTotales.toFixed(2) + ' piezas ≈ Bs. ' + precioTotal.toFixed(2);
+            }
+
+            chkModoPieza.addEventListener('change', function () {
+                actualizarVisibilidad();
+                actualizarPreview();
+            });
+            radiosFactura.forEach(function (radio) {
+                radio.addEventListener('change', function () {
+                    actualizarFiltroTarifa();
+                    actualizarPreview();
+                });
+            });
+            [selectUnidad, selectTarifa, inputCantidad].forEach(function (el) {
+                el.addEventListener('change', actualizarPreview);
+                el.addEventListener('input', actualizarPreview);
+            });
+
+            actualizarVisibilidad();
+            actualizarPreview();
+        });
+    </script>
 {% endblock %}

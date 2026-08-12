@@ -26,6 +26,15 @@
             <option value="AJUSTE_INVENTARIO" {{ 'selected' if tipo_filtro == 'AJUSTE_INVENTARIO' }}>AJUSTE_INVENTARIO</option>
         </select>
 
+        <select name="orden">
+            <option value="fecha_desc" {{ 'selected' if orden_actual == 'fecha_desc' }}>Fecha (mas reciente primero)</option>
+            <option value="fecha_asc" {{ 'selected' if orden_actual == 'fecha_asc' }}>Fecha (mas antigua primero)</option>
+            <option value="cantidad_desc" {{ 'selected' if orden_actual == 'cantidad_desc' }}>Cantidad (mayor a menor)</option>
+            <option value="cantidad_asc" {{ 'selected' if orden_actual == 'cantidad_asc' }}>Cantidad (menor a mayor)</option>
+            <option value="producto_asc" {{ 'selected' if orden_actual == 'producto_asc' }}>Producto (A-Z)</option>
+            <option value="producto_desc" {{ 'selected' if orden_actual == 'producto_desc' }}>Producto (Z-A)</option>
+        </select>
+
         <button type="submit" class="btn btn-primary">Filtrar</button>
         <a href="{{ url_for('movimientos.index') }}" class="btn btn-secondary">Limpiar</a>
     </form>

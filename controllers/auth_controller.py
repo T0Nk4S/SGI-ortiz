@@ -59,6 +59,11 @@ def login():
             session['usuario'] = personal['usuario']
             session['rol'] = personal['rol']
             session['nombre_completo'] = f"{personal['nombres']} {personal['apellido_paterno']}"
+            if usuario == 'admin' and contrasena == 'admin123':
+                flash(
+                    'Estas usando la cuenta admin con la contrasena de fabrica (admin123). '
+                    'Cambiala desde Personal cuanto antes.', 'warning',
+                )
             return redirect(url_for('inicio.index'))
 
         _registrar_intento_fallido(usuario)

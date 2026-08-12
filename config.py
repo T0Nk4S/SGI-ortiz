@@ -24,6 +24,23 @@ class Config:
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
     MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5 MB maximo por archivo
 
-    # Historial de archivos Excel importados (pestana Gestion de Archivos)
-    IMPORT_FOLDER = os.path.join(BASE_DIR, 'static', 'uploads', 'importaciones')
+    # Historial de archivos Excel importados (pestana Gestion de Archivos).
+    # Fuera de static/ a proposito: contienen precios/costos del inventario
+    # completo y static/ se sirve sin exigir sesion (ver ENDPOINTS_PUBLICOS
+    # en app.py). Se descargan por una ruta autenticada (ver
+    # archivos_controller.descargar_importacion), igual que los respaldos.
+    IMPORT_FOLDER = os.path.join(BASE_DIR, 'uploads', 'importaciones')
     ALLOWED_IMPORT_EXTENSIONS = {'xlsx', 'xls'}
+
+    # Fotos de facturas escritas a mano, capturadas por la app movil de
+    # ventas por QR (ver controllers/api_controller.py). Fuera de static/
+    # por el mismo motivo que IMPORT_FOLDER: son fotos de facturas reales
+    # con datos del cliente (nombre, CI/NIT). Se sirven por una ruta
+    # autenticada (ver ventas_controller.factura_imagen).
+    FACTURAS_FOLDER = os.path.join(BASE_DIR, 'uploads', 'facturas')
+
+    # Respaldos manuales de la base de datos (boton "Hacer respaldo" en
+    # Gestion de Archivos). Fuera de static/ a proposito: static/ se sirve
+    # sin exigir sesion (ver ENDPOINTS_PUBLICOS en app.py) y el .db tiene
+    # datos sensibles (hashes de contrasena).
+    RESPALDOS_FOLDER = os.path.join(BASE_DIR, 'database', 'respaldos')

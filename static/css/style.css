@@ -694,6 +694,15 @@ tbody tr:hover {
     background-color: #fffbeb !important;
 }
 
+.venta-card.row-aprobada {
+    border-left: 4px solid var(--success);
+    background-color: #f0fdf4 !important;
+}
+
+.venta-card.row-aprobada:hover {
+    background-color: var(--success-soft) !important;
+}
+
 .venta-card-header {
     display: flex;
     justify-content: space-between;
@@ -927,6 +936,42 @@ body.login-page {
     width: 130px;
 }
 
+.pieza-toggle {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.unidad-venta-select {
+    width: 110px;
+}
+
+.factura-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.factura-toggle label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.pieza-preview {
+    font-size: 0.76rem;
+    color: var(--success-soft-text, var(--text-muted));
+    width: 100%;
+}
+
 .cart-item-price {
     min-width: 90px;
     text-align: right;
@@ -940,6 +985,10 @@ body.login-page {
     font-weight: 400;
     color: var(--text-muted);
     font-size: 0.72rem;
+}
+
+.pieza-info {
+    color: var(--primary, var(--text-muted));
 }
 
 .cart-summary {

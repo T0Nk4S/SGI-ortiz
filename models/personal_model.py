@@ -1,12 +1,25 @@
 """
 personal_model.py
 Capa de acceso a datos (Model) de Personal (usuarios del sistema:
-Administrador, Empleado, Cajero). Incluye el CRUD completo usado por la
-pestana "Usuarios" y la verificacion de credenciales usada por el login.
+Super Admin, Admin, Empleado, Bodega). Incluye el CRUD completo usado por
+la pestana "Usuarios" y la verificacion de credenciales usada por el login.
 """
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from models.database import get_db
+from utilities.utilities import resolver_orden_sql
+
+# Whitelist de ordenamientos disponibles para el listado de Personal (ver
+# resolver_orden_sql).
+ORDENES_PERSONAL = {
+    'nombre_asc': 'nombres COLLATE NOCASE ASC',
+    'nombre_desc': 'nombres COLLATE NOCASE DESC',
+    'rol_asc': 'rol COLLATE NOCASE ASC',
+    'rol_desc': 'rol COLLATE NOCASE DESC',
+    'estado_desc': 'estado DESC',
+    'estado_asc': 'estado ASC',
+}
+ORDEN_PERSONAL_DEFAULT = 'nombre_asc'
 
 
 def get_personal_activo():
@@ -25,9 +38,10 @@ def get_personal(id_personal):
     ).fetchone()
 
 
-def get_all_personal(estado=None, busqueda=None):
+def get_all_personal(estado=None, busqueda=None, orden=None):
     """Lista de personal para la pantalla de administracion, con filtro
-    opcional por estado (0/1) y por texto (nombre, apellidos, ci o usuario)."""
+    opcional por estado (0/1), por texto (nombre, apellidos, ci o usuario)
+    y por ordenamiento (ver ORDENES_PERSONAL)."""
     db = get_db()
     query = "SELECT * FROM personal WHERE 1 = 1"
     params = []
@@ -44,7 +58,8 @@ def get_all_personal(estado=None, busqueda=None):
         like = f"%{busqueda}%"
         params.extend([like, like, like, like, like])
 
-    query += " ORDER BY nombres ASC"
+    orden_sql = resolver_orden_sql(orden, ORDENES_PERSONAL, ORDEN_PERSONAL_DEFAULT)
+    query += f" ORDER BY {orden_sql}"
     return db.execute(query, params).fetchall()
 
 
@@ -71,11 +86,13 @@ def usuario_disponible(usuario, id_personal_excluir=None):
     return fila is None
 
 
-def contar_administradores_activos(id_personal_excluir=None):
-    """Cuenta administradores activos, para evitar dejar el sistema sin
-    ningun administrador al eliminar, desactivar o cambiar el rol de uno."""
+def contar_super_admins_activos(id_personal_excluir=None):
+    """Cuenta Super Admin activos, para evitar dejar el sistema sin
+    ninguno al eliminar, desactivar o cambiar el rol de uno -es el unico
+    rol que puede gestionar Usuarios, asi que sin ninguno nadie podria
+    volver a dar de alta o corregir cuentas."""
     db = get_db()
-    query = "SELECT COUNT(*) AS c FROM personal WHERE rol = 'Administrador' AND estado = 1"
+    query = "SELECT COUNT(*) AS c FROM personal WHERE rol = 'Super Admin' AND estado = 1"
     params = []
     if id_personal_excluir:
         query += " AND id_personal != ?"

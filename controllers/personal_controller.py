@@ -2,37 +2,39 @@
 personal_controller.py
 Rutas (Controller) exclusivas de la pestana Personal (administracion de
 los usuarios del sistema). Solo accesible para usuarios con rol
-Administrador (ver utilities.admin_required).
+Super Admin (ver utilities.roles_required).
 """
 import sqlite3
 
 from flask import Blueprint, flash, redirect, render_template, request, session, url_for
 
 from models import personal_model
-from utilities.utilities import admin_required
+from utilities.utilities import ROL_SUPER_ADMIN, roles_required
 
 personal_bp = Blueprint('personal', __name__, url_prefix='/personal')
 
 
 @personal_bp.route('/')
-@admin_required
+@roles_required(ROL_SUPER_ADMIN)
 def index():
-    """Listado de usuarios (Read) con filtro por estado y busqueda."""
+    """Listado de usuarios (Read) con filtro por estado, busqueda y orden."""
     estado_raw = request.args.get('estado', '')
     busqueda = request.args.get('busqueda', '')
+    orden = request.args.get('orden', '')
     estado = int(estado_raw) if estado_raw in ('0', '1') else None
 
-    personal = personal_model.get_all_personal(estado=estado, busqueda=busqueda or None)
+    personal = personal_model.get_all_personal(estado=estado, busqueda=busqueda or None, orden=orden or None)
     return render_template(
         'personal/personal_view.html',
         personal=personal,
         estado_filtro=estado_raw,
         busqueda=busqueda,
+        orden_actual=orden or personal_model.ORDEN_PERSONAL_DEFAULT,
     )
 
 
 @personal_bp.route('/nuevo', methods=['GET', 'POST'])
-@admin_required
+@roles_required(ROL_SUPER_ADMIN)
 def nuevo():
     """Formulario de creacion (Create)."""
     if request.method == 'POST':
@@ -54,7 +56,7 @@ def nuevo():
 
 
 @personal_bp.route('/editar/<int:id_personal>', methods=['GET', 'POST'])
-@admin_required
+@roles_required(ROL_SUPER_ADMIN)
 def editar(id_personal):
     """Formulario de edicion (Update)."""
     persona = personal_model.get_personal(id_personal)
@@ -70,11 +72,11 @@ def editar(id_personal):
         elif not personal_model.usuario_disponible(data['usuario'], id_personal_excluir=id_personal):
             flash('Ya existe otra cuenta con ese nombre de usuario.', 'danger')
         elif (
-            persona['rol'] == 'Administrador'
-            and data['rol'] != 'Administrador'
-            and personal_model.contar_administradores_activos(id_personal_excluir=id_personal) == 0
+            persona['rol'] == 'Super Admin'
+            and data['rol'] != 'Super Admin'
+            and personal_model.contar_super_admins_activos(id_personal_excluir=id_personal) == 0
         ):
-            flash('No puedes quitar el rol de Administrador al ultimo administrador activo.', 'danger')
+            flash('No puedes quitar el rol de Super Admin al ultimo Super Admin activo.', 'danger')
         else:
             try:
                 personal_model.update_personal(id_personal, data)
@@ -87,10 +89,10 @@ def editar(id_personal):
 
 
 @personal_bp.route('/eliminar/<int:id_personal>', methods=['POST'])
-@admin_required
+@roles_required(ROL_SUPER_ADMIN)
 def eliminar(id_personal):
     """Elimina un usuario (Delete), protegiendo contra auto-eliminacion y
-    contra dejar el sistema sin ningun administrador."""
+    contra dejar el sistema sin ningun Super Admin."""
     persona = personal_model.get_personal(id_personal)
     if not persona:
         flash('El usuario solicitado no existe.', 'danger')
@@ -101,10 +103,10 @@ def eliminar(id_personal):
         return redirect(url_for('personal.index'))
 
     if (
-        persona['rol'] == 'Administrador'
-        and personal_model.contar_administradores_activos(id_personal_excluir=id_personal) == 0
+        persona['rol'] == 'Super Admin'
+        and personal_model.contar_super_admins_activos(id_personal_excluir=id_personal) == 0
     ):
-        flash('No puedes eliminar al ultimo administrador activo del sistema.', 'danger')
+        flash('No puedes eliminar al ultimo Super Admin activo del sistema.', 'danger')
         return redirect(url_for('personal.index'))
 
     try:
@@ -120,7 +122,7 @@ def eliminar(id_personal):
 
 
 @personal_bp.route('/estado/<int:id_personal>', methods=['POST'])
-@admin_required
+@roles_required(ROL_SUPER_ADMIN)
 def cambiar_estado(id_personal):
     """Alterna el estado Activo/Inactivo de un usuario, con las mismas
     protecciones que la eliminacion."""
@@ -134,11 +136,11 @@ def cambiar_estado(id_personal):
         return redirect(url_for('personal.index'))
 
     if (
-        persona['rol'] == 'Administrador'
+        persona['rol'] == 'Super Admin'
         and persona['estado'] == 1
-        and personal_model.contar_administradores_activos(id_personal_excluir=id_personal) == 0
+        and personal_model.contar_super_admins_activos(id_personal_excluir=id_personal) == 0
     ):
-        flash('No puedes desactivar al ultimo administrador activo del sistema.', 'danger')
+        flash('No puedes desactivar al ultimo Super Admin activo del sistema.', 'danger')
         return redirect(url_for('personal.index'))
 
     personal_model.cambiar_estado(id_personal)
@@ -146,7 +148,7 @@ def cambiar_estado(id_personal):
     return redirect(url_for('personal.index'))
 
 
-ROLES_VALIDOS = ('Administrador', 'Empleado', 'Cajero')
+ROLES_VALIDOS = ('Super Admin', 'Admin', 'Empleado', 'Bodega')
 
 
 def _extraer_datos_formulario(request, requiere_contrasena):
@@ -155,7 +157,7 @@ def _extraer_datos_formulario(request, requiere_contrasena):
     El atributo HTML `required` solo protege en el navegador: esta
     validacion es la que realmente se aplica ante una peticion directa."""
     contrasena = request.form.get('contrasena', '')
-    rol = request.form.get('rol', 'Cajero')
+    rol = request.form.get('rol', 'Empleado')
 
     data = {
         'nombres': request.form.get('nombres', '').strip(),
@@ -165,7 +167,7 @@ def _extraer_datos_formulario(request, requiere_contrasena):
         'telefono': request.form.get('telefono', '').strip() or None,
         'usuario': request.form.get('usuario', '').strip().lower(),
         'contrasena': contrasena,
-        'rol': rol if rol in ROLES_VALIDOS else 'Cajero',
+        'rol': rol if rol in ROLES_VALIDOS else 'Empleado',
         'estado': 1,
     }
 

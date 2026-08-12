@@ -52,9 +52,10 @@
                 <div class="form-group">
                     <label>Rol *</label>
                     <select name="rol" required>
-                        <option value="Administrador" {{ 'selected' if persona and persona.rol == 'Administrador' }}>Administrador</option>
-                        <option value="Empleado" {{ 'selected' if persona and persona.rol == 'Empleado' }}>Empleado</option>
-                        <option value="Cajero" {{ 'selected' if (not persona) or persona.rol == 'Cajero' }}>Cajero</option>
+                        <option value="Super Admin" {{ 'selected' if persona and persona.rol == 'Super Admin' }}>Super Admin</option>
+                        <option value="Admin" {{ 'selected' if persona and persona.rol == 'Admin' }}>Admin</option>
+                        <option value="Empleado" {{ 'selected' if (not persona) or persona.rol == 'Empleado' }}>Empleado</option>
+                        <option value="Bodega" {{ 'selected' if persona and persona.rol == 'Bodega' }}>Bodega</option>
                     </select>
                 </div>
             </div>

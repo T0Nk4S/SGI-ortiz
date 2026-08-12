@@ -10,6 +10,56 @@
         </div>
     </div>
 
+    <div class="card" style="background:#eef2ff; border-left:4px solid var(--primary); margin-bottom:18px;">
+        {% if ip_servidor %}
+            <strong>🌐 Direccion del servidor:</strong> {{ ip_servidor }}:{{ puerto_servidor }}
+            <p style="margin:4px 0 0; font-size:0.85rem; color:#6b7280;">
+                Esta es la IP que hay que cargar en la app movil de cada celular (menu Configuracion,
+                dentro de la app). Si el router le asigna otra IP a esta PC (por ejemplo al reiniciarlo),
+                va a cambiar aca tambien -avisale a los empleados para que actualicen la suya.
+            </p>
+        {% else %}
+            <strong>🌐 Direccion del servidor:</strong> no se pudo detectar automaticamente.
+            <p style="margin:4px 0 0; font-size:0.85rem; color:#6b7280;">
+                Revisa la IP de esta PC manualmente (ej. con "ipconfig" en Windows) para configurar la app movil.
+            </p>
+        {% endif %}
+    </div>
+
+    {% if stats.faltantes %}
+        <div class="card alert alert-warning" style="margin-bottom:18px;">
+            <strong>⚠️ Reponer desde el almacén</strong>
+            <p style="margin:4px 0 10px;">
+                Se vendieron más unidades de las que había en tienda para estos productos.
+                Traelos del almacén y actualizá la cantidad para que la alerta desaparezca.
+            </p>
+            <table style="margin:0;">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Código</th>
+                        <th>Falta reponer</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in stats.faltantes %}
+                        <tr>
+                            <td>{{ p.nombre }}</td>
+                            <td>{{ p.codigo_1 }}</td>
+                            <td><strong>{{ p.faltante_texto }}</strong></td>
+                            <td>
+                                {% if session.get('rol') in ROLES_VENTAS %}
+                                    <a href="{{ url_for('productos.reponer', id_producto=p.id_producto) }}" class="btn btn-warning btn-sm">Reponer</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+
     <div class="stats-grid">
         <div class="stat-card">
             <div class="stat-icon">📦</div>

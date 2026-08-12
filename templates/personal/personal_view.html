@@ -15,6 +15,14 @@
             <option value="1" {{ 'selected' if estado_filtro == '1' }}>Activo</option>
             <option value="0" {{ 'selected' if estado_filtro == '0' }}>Inactivo</option>
         </select>
+        <select name="orden">
+            <option value="nombre_asc" {{ 'selected' if orden_actual == 'nombre_asc' }}>Nombre (A-Z)</option>
+            <option value="nombre_desc" {{ 'selected' if orden_actual == 'nombre_desc' }}>Nombre (Z-A)</option>
+            <option value="rol_asc" {{ 'selected' if orden_actual == 'rol_asc' }}>Rol (A-Z)</option>
+            <option value="rol_desc" {{ 'selected' if orden_actual == 'rol_desc' }}>Rol (Z-A)</option>
+            <option value="estado_desc" {{ 'selected' if orden_actual == 'estado_desc' }}>Estado (activos primero)</option>
+            <option value="estado_asc" {{ 'selected' if orden_actual == 'estado_asc' }}>Estado (inactivos primero)</option>
+        </select>
         <button type="submit" class="btn btn-primary">Filtrar</button>
         <a href="{{ url_for('personal.index') }}" class="btn btn-secondary">Limpiar</a>
     </form>

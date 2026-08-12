@@ -18,11 +18,11 @@
                     <input type="text" name="nombre" required value="{{ producto.nombre if producto else '' }}">
                 </div>
                 <div class="form-group">
-                    <label>Codigo 1 * (unico)</label>
+                    <label>Codigo 1 *</label>
                     <input type="text" name="codigo_1" required value="{{ producto.codigo_1 if producto else '' }}">
                 </div>
                 <div class="form-group">
-                    <label>Codigo 2</label>
+                    <label>Codigo 2 (junto al Codigo 1, deben ser unicos)</label>
                     <input type="text" name="codigo_2" value="{{ producto.codigo_2 if producto else '' }}">
                 </div>
                 <div class="form-group">
@@ -92,7 +92,7 @@
                 </div>
                 <div class="form-group">
                     <label>Cantidad (stock, en unidades)</label>
-                    <input type="number" min="0" name="cantidad" value="{{ producto.cantidad if producto else 0 }}">
+                    <input type="number" name="cantidad" value="{{ producto.cantidad if producto else 0 }}">
                 </div>
                 <div class="form-group">
                     <label>Piezas por Paquete</label>

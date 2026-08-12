@@ -26,23 +26,27 @@
                 <a href="{{ url_for('inicio.index') }}"
                    class="{{ 'active' if request.endpoint == 'inicio.index' }}">
                     <span class="nav-icon">🏠</span><span class="nav-text">Inicio</span>
+                    <span class="nav-badge-group">
+                        <span id="badgeFaltantes" class="nav-badge nav-badge-warning" title="Productos a reponer del almacen"
+                              style="{{ '' if sidebar_faltantes else 'display:none;' }}">{{ sidebar_faltantes or 0 }}</span>
+                    </span>
                 </a>
-                
+
                 <a href="{{ url_for('productos.index') }}"
                    class="{{ 'active' if request.blueprint == 'productos' }}">
                     <span class="nav-icon">📦</span><span class="nav-text">Productos</span>
                     {% if sidebar_total_productos is defined %}
-                        <span class="nav-badge-group"><span class="nav-badge">{{ sidebar_total_productos }}</span></span>
+                        <span class="nav-badge-group"><span id="badgeTotalProductos" class="nav-badge">{{ sidebar_total_productos }}</span></span>
                     {% endif %}
                 </a>
 
+                {% if session.get('rol') in ROLES_VENTAS %}
                 <a href="{{ url_for('ventas.index') }}"
                    class="{{ 'active' if request.blueprint == 'ventas' }}">
                     <span class="nav-icon">💰</span><span class="nav-text">Ventas</span>
                     <span class="nav-badge-group">
-                        {% if sidebar_ventas_pendientes %}
-                            <span class="nav-badge nav-badge-warning" title="Ventas pendientes de aprobar">{{ sidebar_ventas_pendientes }}</span>
-                        {% endif %}
+                        <span id="badgeVentasPendientes" class="nav-badge nav-badge-warning" title="Ventas pendientes de aprobar"
+                              style="{{ '' if sidebar_ventas_pendientes else 'display:none;' }}">{{ sidebar_ventas_pendientes or 0 }}</span>
                         {% set carrito_count = session.get('carrito', [])|length %}
                         {% if carrito_count > 0 %}
                             <span class="nav-badge nav-badge-cart" title="Productos en tu carrito de venta actual">{{ carrito_count }}</span>
@@ -54,18 +58,21 @@
                    class="{{ 'active' if request.blueprint == 'movimientos' }}">
                     <span class="nav-icon">📋</span><span class="nav-text">Movimientos</span>
                 </a>
+                {% endif %}
 
-                {% if session.get('rol') == 'Administrador' %}
+                {% if session.get('rol') == ROL_SUPER_ADMIN %}
                 <a href="{{ url_for('personal.index') }}"
                    class="{{ 'active' if request.blueprint == 'personal' }}">
                     <span class="nav-icon">👤</span><span class="nav-text">Usuarios</span>
                 </a>
                 {% endif %}
 
+                {% if session.get('rol') in ROLES_GESTION %}
                 <a href="{{ url_for('archivos.index') }}"
                    class="{{ 'active' if request.blueprint == 'archivos' }}">
                     <span class="nav-icon">🗂️</span><span class="nav-text">Gestion de Archivos</span>
                 </a>
+                {% endif %}
             </nav>
 
             <div class="sidebar-footer">
@@ -186,6 +193,60 @@
                 });
             });
         });
+
+        // ---- Actualizacion automatica de los badges del sidebar, y de
+        // las paginas Ventas/Inicio cuando cambia algo relevante para
+        // ellas (ej. una venta registrada desde la app movil). Sondea
+        // /contadores-sidebar cada pocos segundos; si el numero que le
+        // importa a la pagina actual cambio, la recarga sola. ----
+        (function () {
+            const badgeTotalProductos = document.getElementById('badgeTotalProductos');
+            const badgeVentasPendientes = document.getElementById('badgeVentasPendientes');
+            const badgeFaltantes = document.getElementById('badgeFaltantes');
+
+            const esPaginaVentas = window.location.pathname.startsWith('/ventas');
+            const esPaginaInicio = window.location.pathname === '/';
+
+            let ultimoPendientes = null;
+            let ultimoFaltantes = null;
+            let ultimoTotalProductos = null;
+
+            function actualizarBadgeCondicional(elemento, valor) {
+                if (!elemento) return;
+                elemento.textContent = valor;
+                elemento.style.display = valor > 0 ? '' : 'none';
+            }
+
+            async function sondear() {
+                let datos;
+                try {
+                    const respuesta = await fetch('/contadores-sidebar', { headers: { 'Accept': 'application/json' } });
+                    if (!respuesta.ok) return;
+                    datos = await respuesta.json();
+                } catch (error) {
+                    return; // sin red o servidor caido: se reintenta en el proximo ciclo
+                }
+
+                if (badgeTotalProductos) badgeTotalProductos.textContent = datos.total_productos;
+                actualizarBadgeCondicional(badgeVentasPendientes, datos.ventas_pendientes);
+                actualizarBadgeCondicional(badgeFaltantes, datos.faltantes);
+
+                const cambioRelevante =
+                    (esPaginaVentas && ultimoPendientes !== null && datos.ventas_pendientes !== ultimoPendientes) ||
+                    (esPaginaInicio && ultimoFaltantes !== null &&
+                        (datos.faltantes !== ultimoFaltantes || datos.total_productos !== ultimoTotalProductos));
+
+                ultimoPendientes = datos.ventas_pendientes;
+                ultimoFaltantes = datos.faltantes;
+                ultimoTotalProductos = datos.total_productos;
+
+                if (cambioRelevante) {
+                    window.location.reload();
+                }
+            }
+
+            setInterval(sondear, 3000);
+        })();
     </script>
 
 </body>

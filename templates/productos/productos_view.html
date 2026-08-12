@@ -5,23 +5,31 @@
 {% block content %}
     <div class="page-header">
         <h1>📦 Productos</h1>
-        <a href="{{ url_for('productos.nuevo') }}" class="btn btn-success">+ Nuevo Producto</a>
+        {% if session.get('rol') in ROLES_GESTION %}
+            <a href="{{ url_for('productos.nuevo') }}" class="btn btn-success">+ Nuevo Producto</a>
+        {% endif %}
     </div>
 
+    {% if session.get('rol') in ROLES_VENTAS %}
     <!-- Formulario "fantasma": no envuelve nada, los checkboxes de la tabla
          y el boton de abajo se asocian a el via el atributo form="..." -->
     <form id="formCarritoMultiple" method="post" action="{{ url_for('ventas.carrito_agregar_multiple') }}"></form>
+    {% endif %}
 
     <div class="actions-bar">
-        <button type="button" class="btn btn-success" data-modal-open="modalImportar">📥 Importar</button>
+        {% if session.get('rol') in ROLES_GESTION %}
+            <button type="button" class="btn btn-success" data-modal-open="modalImportar">📥 Importar</button>
 
-        <a href="{{ url_for('im_ex.exportar_productos_pdf') }}" class="btn btn-danger" target="_blank">
-            📄 Exportar PDF
-        </a>
+            <a href="{{ url_for('im_ex.exportar_productos_pdf') }}" class="btn btn-danger" target="_blank">
+                📄 Exportar PDF
+            </a>
+        {% endif %}
 
-        <button type="submit" form="formCarritoMultiple" id="btnAgregarSeleccionados" class="btn btn-primary" disabled>
-            🛒 Agregar seleccionados <span id="contadorSeleccionados"></span>
-        </button>
+        {% if session.get('rol') in ROLES_VENTAS %}
+            <button type="submit" form="formCarritoMultiple" id="btnAgregarSeleccionados" class="btn btn-primary" disabled>
+                🛒 Agregar seleccionados <span id="contadorSeleccionados"></span>
+            </button>
+        {% endif %}
     </div>
 
     <form method="get" class="filters">
@@ -30,6 +38,16 @@
             <option value="" {{ 'selected' if not estado_filtro }}>Todos los estados</option>
             <option value="Activo" {{ 'selected' if estado_filtro == 'Activo' }}>Activo</option>
             <option value="Inactivo" {{ 'selected' if estado_filtro == 'Inactivo' }}>Inactivo</option>
+        </select>
+        <select name="orden">
+            <option value="nombre_asc" {{ 'selected' if orden_actual == 'nombre_asc' }}>Nombre (A-Z)</option>
+            <option value="nombre_desc" {{ 'selected' if orden_actual == 'nombre_desc' }}>Nombre (Z-A)</option>
+            <option value="codigo_asc" {{ 'selected' if orden_actual == 'codigo_asc' }}>Codigo (A-Z)</option>
+            <option value="codigo_desc" {{ 'selected' if orden_actual == 'codigo_desc' }}>Codigo (Z-A)</option>
+            <option value="cantidad_desc" {{ 'selected' if orden_actual == 'cantidad_desc' }}>Stock (mayor a menor)</option>
+            <option value="cantidad_asc" {{ 'selected' if orden_actual == 'cantidad_asc' }}>Stock (menor a mayor)</option>
+            <option value="precio_desc" {{ 'selected' if orden_actual == 'precio_desc' }}>Precio unidad (mayor a menor)</option>
+            <option value="precio_asc" {{ 'selected' if orden_actual == 'precio_asc' }}>Precio unidad (menor a mayor)</option>
         </select>
         <button type="submit" class="btn btn-primary">Filtrar</button>
         <a href="{{ url_for('productos.index') }}" class="btn btn-secondary">Limpiar</a>
@@ -41,7 +59,9 @@
                 <table>
                     <thead>
                         <tr>
-                            <th><input type="checkbox" id="chkTodos" title="Seleccionar todos"></th>
+                            {% if session.get('rol') in ROLES_VENTAS %}
+                                <th><input type="checkbox" id="chkTodos" title="Seleccionar todos"></th>
+                            {% endif %}
                             <th>Foto</th>
                             <th>Nombre</th>
                             <th>Codigo 1</th>
@@ -69,11 +89,13 @@
                     <tbody>
                         {% for p in productos %}
                             <tr>
-                                <td>
-                                    <input type="checkbox" class="chk-producto" name="ids_seleccionados"
-                                           value="{{ p.id_producto }}" form="formCarritoMultiple"
-                                           {{ 'disabled' if p.cantidad == 0 }}>
-                                </td>
+                                {% if session.get('rol') in ROLES_VENTAS %}
+                                    <td>
+                                        <input type="checkbox" class="chk-producto" name="ids_seleccionados"
+                                               value="{{ p.id_producto }}" form="formCarritoMultiple"
+                                               {{ 'disabled' if p.cantidad <= 0 }}>
+                                    </td>
+                                {% endif %}
                                 <td>
                                     {% if p.foto_url %}
                                         <img class="thumb" src="{{ url_for('static', filename='uploads/' ~ p.foto_url) }}" alt="{{ p.nombre }}">
@@ -99,7 +121,7 @@
                                 <td>{{ p.ubicacion_nombre or '-' }}</td>
                                 <td>{{ p.posicion }}</td>
                                 <td>{{ p.venta_fraccionada }}</td>
-                                <td>{{ p.cantidad }}{% if p.cantidad == 0 %} <span class="badge badge-inactivo" style="font-size:0.7rem;">Agotado</span>{% endif %}</td>
+                                <td>{{ p.cantidad }}{% if p.cantidad <= 0 %} <span class="badge badge-inactivo" style="font-size:0.7rem;">Agotado</span>{% endif %}</td>
                                 <td>
                                     <span class="badge {{ 'badge-activo' if p.estado == 'Activo' else 'badge-inactivo' }}">
                                         {{ p.estado }}
@@ -107,25 +129,32 @@
                                 </td>
                                 <td>
                                     <div class="actions-cell">
-                                        <a href="{{ url_for('ventas.carrito_agregar', id_producto=p.id_producto) }}" class="btn btn-success btn-sm">Vender</a>
+                                        {% if session.get('rol') in ROLES_VENTAS %}
+                                            <a href="{{ url_for('ventas.carrito_agregar', id_producto=p.id_producto) }}" class="btn btn-success btn-sm">Vender</a>
+                                        {% endif %}
                                         <a href="{{ url_for('productos.ver', id_producto=p.id_producto) }}" class="btn btn-info btn-sm">Ver</a>
-                                        <a href="{{ url_for('productos.editar', id_producto=p.id_producto) }}" class="btn btn-primary btn-sm">Editar</a>
 
-                                        <form action="{{ url_for('productos.cambiar_estado', id_producto=p.id_producto) }}" method="post" style="display:inline;">
-                                            <button type="submit" class="btn btn-warning btn-sm">
-                                                {{ 'Desactivar' if p.estado == 'Activo' else 'Activar' }}
-                                            </button>
-                                        </form>
+                                        {% if session.get('rol') in ROLES_GESTION %}
+                                            <a href="{{ url_for('productos.editar', id_producto=p.id_producto) }}" class="btn btn-primary btn-sm">Editar</a>
 
-                                        <form action="{{ url_for('productos.eliminar', id_producto=p.id_producto) }}" method="post" style="display:inline;"
-                                              data-confirm="¿Eliminar el producto {{ p.nombre }}? Esta accion no se puede deshacer.">
-                                            <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
-                                        </form>
+                                            <form action="{{ url_for('productos.cambiar_estado', id_producto=p.id_producto) }}" method="post" style="display:inline;">
+                                                <button type="submit" class="btn btn-warning btn-sm">
+                                                    {{ 'Desactivar' if p.estado == 'Activo' else 'Activar' }}
+                                                </button>
+                                            </form>
+
+                                            <form action="{{ url_for('productos.eliminar', id_producto=p.id_producto) }}" method="post" style="display:inline;"
+                                                  data-confirm="¿Eliminar el producto {{ p.nombre }}? Esta accion no se puede deshacer.">
+                                                <button type="submit" class="btn btn-danger btn-sm">Eliminar</button>
+                                            </form>
+                                        {% endif %}
 
                                         <button type="button" class="btn btn-secondary btn-sm"
                                                 data-modal-open="modalQr"
                                                 data-qr-src="{{ url_for('productos.qr_imagen', id_producto=p.id_producto) }}"
-                                                data-qr-nombre="{{ p.nombre }}">QR</button>
+                                                data-qr-nombre="{{ p.nombre }}"
+                                                data-etiqueta-pequena="{{ url_for('productos.etiqueta', id_producto=p.id_producto, tamano='pequena') }}"
+                                                data-etiqueta-grande="{{ url_for('productos.etiqueta', id_producto=p.id_producto, tamano='grande') }}">QR</button>
                                     </div>
                                 </td>
                             </tr>
@@ -136,8 +165,10 @@
         {% else %}
             <div class="empty-state">
                 No se encontraron productos.
-                <br><br>
-                <a href="{{ url_for('productos.nuevo') }}" class="btn btn-success">+ Crear el primer producto</a>
+                {% if session.get('rol') in ROLES_GESTION %}
+                    <br><br>
+                    <a href="{{ url_for('productos.nuevo') }}" class="btn btn-success">+ Crear el primer producto</a>
+                {% endif %}
             </div>
         {% endif %}
     </div>
@@ -180,8 +211,10 @@
                      style="width:220px; height:220px; margin:0 auto; display:block; border:1px solid var(--border); border-radius:var(--radius-md); background:#fff;">
                 <p class="cart-note">Escanealo con la camara de un celular para ver los datos del producto.</p>
             </div>
-            <div class="modal-footer">
+            <div class="modal-footer" style="flex-wrap: wrap; gap: 8px;">
                 <a id="modalQrDescargar" href="" download class="btn btn-success">⬇ Descargar</a>
+                <a id="modalQrImprimirPequena" href="" target="_blank" class="btn btn-danger" title="Etiqueta 5.6 x 4.5 cm">🖨️ Imprimir chica</a>
+                <a id="modalQrImprimirGrande" href="" target="_blank" class="btn btn-danger" title="Etiqueta 10 x 15 cm">🖨️ Imprimir grande</a>
                 <button type="button" class="btn btn-secondary" data-modal-close>Cerrar</button>
             </div>
         </div>
@@ -196,6 +229,8 @@
                 document.getElementById('modalQrImagen').src = boton.dataset.qrSrc;
                 document.getElementById('modalQrDescargar').href = boton.dataset.qrSrc;
                 document.getElementById('modalQrTitulo').textContent = 'QR: ' + boton.dataset.qrNombre;
+                document.getElementById('modalQrImprimirPequena').href = boton.dataset.etiquetaPequena;
+                document.getElementById('modalQrImprimirGrande').href = boton.dataset.etiquetaGrande;
             });
         });
 
